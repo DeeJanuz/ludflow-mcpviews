@@ -15,9 +15,10 @@
   }
 
   function ensureStyles() {
-    if (document.getElementById(STYLE_ID)) return;
+    var existingStyle = document.getElementById(STYLE_ID);
+    if (existingStyle && existingStyle.textContent.indexOf('.lf-doc-version-bar') >= 0) return;
 
-    var style = document.createElement('style');
+    var style = existingStyle || document.createElement('style');
     style.id = STYLE_ID;
     style.textContent = [
       '.lf-shell { --lf-font: Figtree, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif; --lf-radius: 8px; min-height: 100%; display: flex; flex-direction: column; overflow: hidden; font-family: var(--lf-font); background: var(--lf-bg); color: var(--lf-text); }',
@@ -58,9 +59,12 @@
       '.lf-empty-screen { margin: 24px; border: 1px dashed var(--lf-border); border-radius: 12px; padding: 28px; background: var(--lf-surface-muted); color: var(--lf-text-muted); }',
       '.lf-empty-title { color: var(--lf-text); font-size: 16px; font-weight: 600; margin-bottom: 6px; }',
       '.lf-home-layout { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320px, 30%) minmax(0, 1fr); overflow: hidden; }',
+      '.lf-home-layout-sidebar-collapsed { grid-template-columns: 48px minmax(0, 1fr); }',
       '.lf-sidebar { width: auto; min-width: 320px; border-right: 1px solid var(--lf-border); background: var(--lf-surface); display: flex; flex-direction: column; min-height: 0; }',
+      '.lf-sidebar-collapsed { width: 48px; min-width: 48px; }',
       '.lf-sidebar-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; border-bottom: 1px solid var(--lf-border); }',
       '.lf-sidebar-title { font-size: 16px; font-weight: 600; color: var(--lf-text); }',
+      '.lf-sidebar-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }',
       '.lf-sidebar-body { flex: 1; min-height: 0; overflow: auto; padding: 16px; }',
       '.lf-input, .lf-textarea { width: 100%; border: 1px solid var(--lf-border); border-radius: var(--lf-radius); background: var(--lf-surface); color: var(--lf-text); padding: 9px 10px; font: inherit; box-shadow: var(--lf-shadow); }',
       '.lf-input { min-height: 36px; }',
@@ -94,6 +98,13 @@
       '.lf-result-meta { margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--lf-text-muted); font-size: 12px; }',
       '.lf-result-actions { margin-top: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }',
       '.lf-filter-note { color: var(--lf-text-muted); font-size: 12px; line-height: 1.45; }',
+      '.lf-doc-version-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; padding: 12px 14px; border: 1px solid var(--lf-border); border-radius: 8px; background: var(--lf-surface-muted); box-shadow: var(--lf-shadow); flex-wrap: wrap; }',
+      '.lf-doc-version-left { display: flex; flex-direction: column; gap: 3px; min-width: 180px; }',
+      '.lf-doc-version-title { color: var(--lf-text); font-size: 13px; font-weight: 600; }',
+      '.lf-doc-version-status { color: var(--lf-text-muted); font-size: 12px; line-height: 1.4; }',
+      '.lf-doc-version-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }',
+      '.lf-doc-version-select { min-width: min(360px, 100%); }',
+      '.lf-doc-version-error { color: var(--lf-error-text); }',
       '.lf-doc-row { color: var(--lf-text-muted); }',
       '.lf-doc-row-active { background: var(--lf-brand-50); border-color: var(--lf-brand-200); color: var(--lf-text); }',
       '.lf-doc-tabs { display: flex; align-items: center; gap: 4px; min-height: 44px; padding: 8px 16px; border-bottom: 1px solid var(--lf-border); background: var(--lf-surface); overflow: auto; }',
@@ -249,11 +260,11 @@
       '.lf-diff-item-copy { margin-top: 4px; color: var(--lf-text-muted); font-size: 12px; line-height: 1.45; }',
       '.lf-help { color: var(--lf-text-muted); font-size: 12px; line-height: 1.45; }',
       '@media (max-width: 900px) { .lf-governance-layout { flex-direction: column; } .lf-rail, .lf-rail-compact { width: 100%; min-width: 0; max-height: 320px; border-right: none; border-bottom: 1px solid var(--lf-border); } .lf-doc-content { grid-template-columns: minmax(0, 1fr); } .lf-doc-pane + .lf-doc-pane { border-left: none; border-top: 1px solid var(--lf-border); } }',
-      '@media (max-width: 900px) { .lf-home-layout { grid-template-columns: 1fr; } .lf-sidebar { width: 100%; min-width: 0; max-height: 320px; border-right: none; border-bottom: 1px solid var(--lf-border); } }',
+      '@media (max-width: 900px) { .lf-home-layout { grid-template-columns: 1fr; } .lf-home-layout-sidebar-collapsed { grid-template-columns: 48px minmax(0, 1fr); } .lf-sidebar { width: 100%; min-width: 0; max-height: 320px; border-right: none; border-bottom: 1px solid var(--lf-border); } .lf-sidebar-collapsed { width: 48px; min-width: 48px; max-height: none; border-right: 1px solid var(--lf-border); border-bottom: none; } }',
       '@media (max-width: 720px) { .lf-topnav, .lf-breadcrumbs, .lf-subsystem-row, .lf-kd-panel, .lf-metadata-inner { padding-left: 16px; padding-right: 16px; } .lf-notice { margin-left: 16px; margin-right: 16px; } .lf-sidebar-body, .lf-rail-body, .lf-doc-pane, .lf-panel-stack { padding: 12px; } .lf-doc-header, .lf-doc-tabs, .lf-sidebar-header, .lf-metadata-toolbar { padding-left: 12px; padding-right: 12px; } .lf-grid-2 { grid-template-columns: 1fr; } .lf-topnav-center { width: 100%; justify-content: flex-start; } .lf-hero-card { padding: 16px; } }'
     ].join('\n');
 
-    document.head.appendChild(style);
+    if (!existingStyle) document.head.appendChild(style);
   }
 
   function el(tag, className, text) {
@@ -620,6 +631,269 @@
     return 'Folder';
   }
 
+  function folderParentId(folder) {
+    return folder.parentFolderId || folder.parent_folder_id || null;
+  }
+
+  function documentFolderId(documentItem) {
+    if (!documentItem) return null;
+    return documentItem.folderId || documentItem.folder_id || (documentItem.folder && documentItem.folder.id) || null;
+  }
+
+  function documentFolderLabel(documentItem, folders) {
+    if (documentItem && documentItem.folder && documentItem.folder.name) return documentItem.folder.name;
+    return folderName(documentFolderId(documentItem), safeArray(folders));
+  }
+
+  function documentPublishedVersionId(documentItem) {
+    if (!documentItem) return null;
+    return documentItem.publishedVersionId || documentItem.published_version_id || null;
+  }
+
+  function documentVersionNumber(version) {
+    if (!version) return null;
+    var raw = version.versionNumber;
+    if (raw === undefined || raw === null) raw = version.version_number;
+    if (raw === undefined || raw === null) raw = version.number;
+    var parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function requestedDocumentVersionNumber(documentItem) {
+    if (!documentItem) return null;
+    var raw = documentItem.requested_version;
+    if (raw === undefined || raw === null) raw = documentItem.requestedVersion;
+    var parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function normalizeDocumentVersions(versions, documentItem) {
+    var seen = {};
+    var publishedVersionId = documentPublishedVersionId(documentItem);
+    return safeArray(versions).map(function (version) {
+      var number = documentVersionNumber(version);
+      if (number === null) return null;
+      var key = String(number);
+      if (seen[key]) return null;
+      seen[key] = true;
+      return {
+        id: version.id || null,
+        versionNumber: number,
+        label: version.label || null,
+        createdAt: version.createdAt || version.created_at || null,
+        isCurrentlyPublished: version.isCurrentlyPublished === true ||
+          version.is_currently_published === true ||
+          (!!publishedVersionId && version.id === publishedVersionId)
+      };
+    }).filter(Boolean).sort(function (left, right) {
+      return Number(right.versionNumber || 0) - Number(left.versionNumber || 0);
+    });
+  }
+
+  function documentVersionLabel(version) {
+    var parts = ['Version ' + safeText(version.versionNumber, '?')];
+    if (version.label) parts.push(safeText(version.label));
+    if (version.isCurrentlyPublished) parts.push('published');
+    if (version.createdAt || version.created_at) parts.push(formatDate(version.createdAt || version.created_at));
+    return parts.join(' - ');
+  }
+
+  function documentVersionSummary(documentItem) {
+    var selectedVersion = requestedDocumentVersionNumber(documentItem);
+    return selectedVersion === null ? 'Current content' : 'Version ' + selectedVersion;
+  }
+
+  function buildDocumentRichContent(documentItem, folders) {
+    var lines = [];
+    lines.push('- **Status:** ' + safeText(documentItem.status, 'DRAFT'));
+    lines.push('- **Viewing:** ' + documentVersionSummary(documentItem));
+    lines.push('- **Folder:** ' + documentFolderLabel(documentItem, folders));
+    if (documentItem.user && (documentItem.user.name || documentItem.user.email)) {
+      lines.push('- **Author:** ' + safeText(documentItem.user.name || documentItem.user.email));
+    }
+    if (documentItem.createdAt || documentItem.created_at) {
+      lines.push('- **Created:** ' + formatDate(documentItem.createdAt || documentItem.created_at));
+    }
+    if (documentItem.updatedAt || documentItem.updated_at) {
+      lines.push('- **Updated:** ' + formatDate(documentItem.updatedAt || documentItem.updated_at));
+    }
+    var meta = lines.join('\n');
+    var body = (meta ? meta + '\n\n---\n\n' : '') + (safeText(documentItem.content).trim() || '_This document is empty._');
+    return {
+      title: documentItem.title || 'Untitled Document',
+      body: body
+    };
+  }
+
+  function buildDocumentSessionPayload(documentItem, currentOrgId, folders, metaOverrides) {
+    var previousDocumentMeta = metaOverrides && metaOverrides.ludflow_document ? metaOverrides.ludflow_document : {};
+    var versions = normalizeDocumentVersions(documentItem.versions || previousDocumentMeta.versions, documentItem);
+    var selectedVersion = requestedDocumentVersionNumber(documentItem);
+    var documentId = documentItem.id;
+    var meta = Object.assign({}, metaOverrides || {}, {
+      standalone_origin: 'ludflow_documents_home',
+      organization_id: currentOrgId || (metaOverrides && metaOverrides.organization_id) || null,
+      ludflow_document: {
+        id: documentId,
+        title: documentItem.title || 'Untitled Document',
+        folder_name: documentFolderLabel(documentItem, folders),
+        selected_version_number: selectedVersion,
+        versions: versions
+      }
+    });
+    if (!meta.organization_id) delete meta.organization_id;
+    return {
+      toolName: 'rich_content',
+      contentType: 'rich_content',
+      data: buildDocumentRichContent(documentItem, folders),
+      meta: meta,
+      toolArgs: {
+        document_id: documentId,
+        title: documentItem.title || 'Untitled Document',
+        version_number: selectedVersion === null ? null : selectedVersion
+      },
+      sessionKey: 'ludflow-document:' + safeText(documentId, 'untitled')
+    };
+  }
+
+  function selectedDocumentVersionValue(documentMeta, toolArgs) {
+    var raw = documentMeta && documentMeta.selected_version_number;
+    if (raw === undefined || raw === null) raw = toolArgs && toolArgs.version_number;
+    var parsed = Number(raw);
+    return Number.isFinite(parsed) ? String(parsed) : '__current__';
+  }
+
+  function parseSelectedDocumentVersion(value) {
+    if (value === '__current__') return null;
+    var parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function replaceLudflowDocumentPreview(documentItem, priorMeta, sessionId) {
+    var utilsObject = utils();
+    var nextPayload = buildDocumentSessionPayload(
+      documentItem,
+      priorMeta && priorMeta.organization_id,
+      [],
+      priorMeta
+    );
+
+    if (sessionId && utilsObject && typeof utilsObject.replaceSession === 'function') {
+      utilsObject.replaceSession(sessionId, nextPayload, { autoFocus: true });
+      return Promise.resolve();
+    }
+    if (utilsObject && typeof utilsObject.openSession === 'function') {
+      utilsObject.openSession(nextPayload);
+      return Promise.resolve();
+    }
+    return pushContentSession(
+      'rich_content',
+      nextPayload.data,
+      nextPayload.meta,
+      nextPayload.toolArgs,
+      'ludflow-document-' + safeText(documentItem.id, 'untitled')
+    );
+  }
+
+  function renderLudflowDocumentVersionControls(container, meta, toolArgs) {
+    var documentMeta = meta && meta.ludflow_document ? meta.ludflow_document : null;
+    var documentId = (documentMeta && documentMeta.id) || (toolArgs && toolArgs.document_id);
+    if (!documentId || !meta || meta.standalone_origin !== 'ludflow_documents_home') return;
+    if (container.querySelector('.lf-doc-version-bar')) return;
+
+    ensureStyles();
+
+    var versions = normalizeDocumentVersions((documentMeta && documentMeta.versions) || [], {
+      publishedVersionId: documentMeta && (documentMeta.published_version_id || documentMeta.publishedVersionId)
+    });
+    var selectedValue = selectedDocumentVersionValue(documentMeta, toolArgs);
+    var activeSession = utils().getActiveSession ? utils().getActiveSession() : null;
+    var sessionId = activeSession && activeSession.sessionId;
+
+    var bar = el('div', 'lf-doc-version-bar');
+    var left = el('div', 'lf-doc-version-left');
+    left.appendChild(el('div', 'lf-doc-version-title', 'Document version'));
+    var status = el('div', 'lf-doc-version-status', versions.length ? 'Switch between saved versions or the current content.' : 'No saved versions are available yet.');
+    left.appendChild(status);
+    bar.appendChild(left);
+
+    var controls = el('div', 'lf-doc-version-controls');
+    var select = createSelect([{ value: '__current__', label: 'Current content' }], selectedValue);
+    select.className += ' lf-doc-version-select';
+
+    var hasSelectedVersionOption = selectedValue === '__current__';
+    versions.forEach(function (version) {
+      var option = document.createElement('option');
+      option.value = String(version.versionNumber);
+      option.textContent = documentVersionLabel(version);
+      if (option.value === selectedValue) {
+        option.selected = true;
+        hasSelectedVersionOption = true;
+      }
+      select.appendChild(option);
+    });
+
+    if (!hasSelectedVersionOption) {
+      var selectedOption = document.createElement('option');
+      selectedOption.value = selectedValue;
+      selectedOption.textContent = 'Version ' + selectedValue;
+      selectedOption.selected = true;
+      select.appendChild(selectedOption);
+    }
+
+    select.addEventListener('change', function () {
+      var nextVersion = parseSelectedDocumentVersion(select.value);
+      var requestArgs = {
+        document_id: documentId,
+        include_links: true,
+        include_children: true
+      };
+      if (meta.organization_id) requestArgs.organization_id = meta.organization_id;
+      if (nextVersion !== null) requestArgs.version_number = nextVersion;
+
+      select.disabled = true;
+      status.classList.remove('lf-doc-version-error');
+      status.textContent = nextVersion === null ? 'Loading current content...' : 'Loading version ' + nextVersion + '...';
+
+      callTool('get_document', requestArgs)
+        .then(function (payload) {
+          var documentItem = payload.data || payload;
+          return replaceLudflowDocumentPreview(documentItem, meta, sessionId);
+        })
+        .catch(function (error) {
+          select.disabled = false;
+          select.value = selectedValue;
+          status.classList.add('lf-doc-version-error');
+          status.textContent = error.message || 'Failed to load that document version.';
+        });
+    });
+
+    controls.appendChild(select);
+    bar.appendChild(controls);
+
+    var header = container.querySelector('.rc-header');
+    if (header && header.parentNode === container) {
+      container.insertBefore(bar, header.nextSibling);
+    } else {
+      container.insertBefore(bar, container.firstChild || null);
+    }
+  }
+
+  function installLudflowRichContentEnhancements() {
+    if (!window.__renderers || typeof window.__renderers.rich_content !== 'function') return;
+    var original = window.__renderers.rich_content;
+    if (original.__ludflowDocumentVersions === true) return;
+
+    var wrapped = function renderLudflowRichContent(container, data, meta, toolArgs, reviewRequired, onDecision) {
+      var result = original(container, data, meta, toolArgs, reviewRequired, onDecision);
+      renderLudflowDocumentVersionControls(container, meta || {}, toolArgs || {});
+      return result;
+    };
+    wrapped.__ludflowDocumentVersions = true;
+    wrapped.__ludflowOriginalRichContent = original;
+    window.__renderers.rich_content = wrapped;
+  }
+
   function columnTypeName(column) {
     return column.originalDataType || column.original_data_type || column.type || 'Unknown';
   }
@@ -639,7 +913,7 @@
   function treeifyFolders(folders) {
     var byParent = {};
     safeArray(folders).forEach(function (folder) {
-      var parentId = folder.parentFolderId || folder.parent_folder_id || 'root';
+      var parentId = folderParentId(folder) || 'root';
       byParent[parentId] = byParent[parentId] || [];
       byParent[parentId].push(folder);
     });
@@ -883,6 +1157,7 @@
       folders: [],
       documents: [],
       expandedFolders: {},
+      fileTreeCollapsed: false,
       selectedFolderId: null,
       selectedDocumentId: data.document_id || null,
       searchQuery: '',
@@ -901,10 +1176,6 @@
       return null;
     }
 
-    function documentFolderId(documentItem) {
-      return documentItem.folderId || documentItem.folder_id || null;
-    }
-
     function documentsByFolder() {
       var map = {};
       state.documents.forEach(function (documentItem) {
@@ -917,8 +1188,29 @@
 
     function rememberExpandedFolders() {
       safeArray(state.folders).forEach(function (folder) {
-        if (state.expandedFolders[folder.id] === undefined) state.expandedFolders[folder.id] = true;
+        if (state.expandedFolders[folder.id] === undefined) state.expandedFolders[folder.id] = false;
       });
+    }
+
+    function isFolderExpanded(folderId) {
+      return !!state.searchQuery || !!state.expandedFolders[folderId];
+    }
+
+    function expandFolderPath(folderId) {
+      var nextFolderId = folderId;
+      var guard = 0;
+      while (nextFolderId && guard <= state.folders.length) {
+        state.expandedFolders[nextFolderId] = true;
+        var parentId = null;
+        for (var i = 0; i < state.folders.length; i += 1) {
+          if (state.folders[i].id === nextFolderId) {
+            parentId = folderParentId(state.folders[i]);
+            break;
+          }
+        }
+        nextFolderId = parentId;
+        guard += 1;
+      }
     }
 
     function statusMatches(documentItem) {
@@ -992,44 +1284,10 @@
       return folderQueryMatch || folderHasVisibleContent(folder.id);
     }
 
-    function buildDocumentRichContent(documentItem) {
-      var lines = [];
-      lines.push('- **Status:** ' + safeText(documentItem.status, 'DRAFT'));
-      lines.push('- **Folder:** ' + folderName(documentFolderId(documentItem), state.folders));
-      if (documentItem.user && (documentItem.user.name || documentItem.user.email)) {
-        lines.push('- **Author:** ' + safeText(documentItem.user.name || documentItem.user.email));
-      }
-      if (documentItem.createdAt || documentItem.created_at) {
-        lines.push('- **Created:** ' + formatDate(documentItem.createdAt || documentItem.created_at));
-      }
-      if (documentItem.updatedAt || documentItem.updated_at) {
-        lines.push('- **Updated:** ' + formatDate(documentItem.updatedAt || documentItem.updated_at));
-      }
-      var meta = lines.join('\n');
-      var body = (meta ? meta + '\n\n---\n\n' : '') + (safeText(documentItem.content).trim() || '_This document is empty._');
-      return {
-        title: documentItem.title || 'Untitled Document',
-        body: body
-      };
-    }
-
     function openDocumentSession(documentItem) {
       var utilsObject = utils();
       var sessionId = 'ludflow-document-' + safeText(documentItem.id, 'untitled');
-      var sessionPayload = {
-        toolName: 'rich_content',
-        contentType: 'rich_content',
-        data: buildDocumentRichContent(documentItem),
-        meta: {
-          standalone_origin: 'ludflow_documents_home',
-          organization_id: state.currentOrgId
-        },
-        toolArgs: {
-          document_id: documentItem.id,
-          title: documentItem.title || 'Untitled Document'
-        },
-        sessionKey: 'ludflow-document:' + safeText(documentItem.id, 'untitled')
-      };
+      var sessionPayload = buildDocumentSessionPayload(documentItem, state.currentOrgId, state.folders);
       if (utilsObject && typeof utilsObject.openSession === 'function') {
         utilsObject.openSession(sessionPayload);
         return Promise.resolve();
@@ -1056,6 +1314,7 @@
         .then(function (payload) {
           var documentItem = payload.data || payload;
           state.selectedDocumentId = documentItem.id || documentId;
+          expandFolderPath(documentFolderId(documentItem));
           return openDocumentSession(documentItem).then(function () {
             state.loading = false;
             state.initializing = false;
@@ -1209,7 +1468,8 @@
           render();
         });
 
-        var caret = el('span', 'lf-tree-caret' + (state.expandedFolders[folder.id] ? ' lf-tree-caret-open' : ''));
+        var folderExpanded = isFolderExpanded(folder.id);
+        var caret = el('span', 'lf-tree-caret' + (folderExpanded ? ' lf-tree-caret-open' : ''));
         var caretButton = el('button', 'lf-mini-button');
         caretButton.type = 'button';
         caretButton.style.padding = '0';
@@ -1229,7 +1489,7 @@
         row.appendChild(el('span', 'lf-tree-label', folder.name || 'Folder'));
         parent.appendChild(row);
 
-        if (state.expandedFolders[folder.id]) {
+        if (folderExpanded) {
           safeArray(documentsByFolder()[folder.id]).forEach(function (documentItem) {
             renderDocumentNode(parent, documentItem, level + 1);
           });
@@ -1239,45 +1499,71 @@
     }
 
     function renderBody(body) {
-      var layout = el('div', 'lf-home-layout');
+      var layout = el('div', 'lf-home-layout' + (state.fileTreeCollapsed ? ' lf-home-layout-sidebar-collapsed' : ''));
       body.appendChild(layout);
 
-      var sidebar = el('aside', 'lf-sidebar');
+      var sidebar = el('aside', 'lf-sidebar' + (state.fileTreeCollapsed ? ' lf-sidebar-collapsed' : ''));
       layout.appendChild(sidebar);
 
-      var sidebarHeader = el('div', 'lf-sidebar-header');
-      sidebarHeader.appendChild(el('div', 'lf-sidebar-title', 'File Tree'));
-      sidebarHeader.appendChild(createButton('Refresh', '', refreshIndex));
-      sidebar.appendChild(sidebarHeader);
+      if (state.fileTreeCollapsed) {
+        var collapsedFiles = el('div', 'lf-collapsed-rail');
+        var expandFiles = el('button', 'lf-panel-toggle', '>');
+        expandFiles.type = 'button';
+        expandFiles.setAttribute('aria-label', 'Show file tree');
+        expandFiles.title = 'Show file tree';
+        expandFiles.addEventListener('click', function () {
+          state.fileTreeCollapsed = false;
+          render();
+        });
+        collapsedFiles.appendChild(expandFiles);
+        collapsedFiles.appendChild(el('div', 'lf-vertical-label', 'Files'));
+        sidebar.appendChild(collapsedFiles);
+      } else {
+        var sidebarHeader = el('div', 'lf-sidebar-header');
+        sidebarHeader.appendChild(el('div', 'lf-sidebar-title', 'File Tree'));
+        var sidebarActions = el('div', 'lf-sidebar-actions');
+        sidebarActions.appendChild(createButton('Refresh', '', refreshIndex));
+        var collapseFiles = el('button', 'lf-panel-toggle', '<');
+        collapseFiles.type = 'button';
+        collapseFiles.setAttribute('aria-label', 'Hide file tree');
+        collapseFiles.title = 'Hide file tree';
+        collapseFiles.addEventListener('click', function () {
+          state.fileTreeCollapsed = true;
+          render();
+        });
+        sidebarActions.appendChild(collapseFiles);
+        sidebarHeader.appendChild(sidebarActions);
+        sidebar.appendChild(sidebarHeader);
 
-      var sidebarBody = el('div', 'lf-sidebar-body');
-      sidebar.appendChild(sidebarBody);
+        var sidebarBody = el('div', 'lf-sidebar-body');
+        sidebar.appendChild(sidebarBody);
 
-      var folderSearch = createInput('text', state.searchQuery, 'Search folders and documents');
-      folderSearch.addEventListener('input', function () {
-        state.searchQuery = folderSearch.value;
-        render();
-      });
-      sidebarBody.appendChild(folderSearch);
+        var folderSearch = createInput('text', state.searchQuery, 'Search folders and documents');
+        folderSearch.addEventListener('input', function () {
+          state.searchQuery = folderSearch.value;
+          render();
+        });
+        sidebarBody.appendChild(folderSearch);
 
-      sidebarBody.appendChild(el('div', 'lf-section-label', 'Browse'));
-      var tree = el('div', 'lf-tree');
-      sidebarBody.appendChild(tree);
+        sidebarBody.appendChild(el('div', 'lf-section-label', 'Browse'));
+        var tree = el('div', 'lf-tree');
+        sidebarBody.appendChild(tree);
 
-      var rootButton = el('button', 'lf-tree-row' + (!state.selectedFolderId ? ' lf-tree-row-active' : ''), '');
-      rootButton.type = 'button';
-      rootButton.appendChild(el('span', 'lf-tree-doc-icon'));
-      rootButton.appendChild(el('span', 'lf-tree-label', 'All Files'));
-      rootButton.appendChild(el('span', 'lf-tree-meta', String(visibleDocuments().length)));
-      rootButton.addEventListener('click', function () {
-        state.selectedFolderId = null;
-        render();
-      });
-      tree.appendChild(rootButton);
-      safeArray(documentsByFolder().root).forEach(function (documentItem) {
-        renderDocumentNode(tree, documentItem, 0);
-      });
-      renderFolderTree(tree, 'root', 0);
+        var rootButton = el('button', 'lf-tree-row' + (!state.selectedFolderId ? ' lf-tree-row-active' : ''), '');
+        rootButton.type = 'button';
+        rootButton.appendChild(el('span', 'lf-tree-doc-icon'));
+        rootButton.appendChild(el('span', 'lf-tree-label', 'All Files'));
+        rootButton.appendChild(el('span', 'lf-tree-meta', String(visibleDocuments().length)));
+        rootButton.addEventListener('click', function () {
+          state.selectedFolderId = null;
+          render();
+        });
+        tree.appendChild(rootButton);
+        safeArray(documentsByFolder().root).forEach(function (documentItem) {
+          renderDocumentNode(tree, documentItem, 0);
+        });
+        renderFolderTree(tree, 'root', 0);
+      }
 
       var main = el('section', 'lf-browser-main');
       layout.appendChild(main);
@@ -1380,9 +1666,11 @@
 
           var actions = el('div', 'lf-result-actions');
           var focusButton = createButton('Focus in Tree', '', function () {
+            var focusedFolderId = documentFolderId(documentItem);
             state.selectedDocumentId = documentItem.id;
-            state.selectedFolderId = documentFolderId(documentItem);
-            if (state.selectedFolderId) state.expandedFolders[state.selectedFolderId] = true;
+            state.selectedFolderId = focusedFolderId;
+            expandFolderPath(focusedFolderId);
+            state.fileTreeCollapsed = false;
             render();
           });
           actions.appendChild(focusButton);
@@ -3401,4 +3689,6 @@
     next.knowledge_tab = next.mode === 'personal' ? 'personal' : 'org';
     createDataGovernanceRenderer(container, next);
   };
+
+  installLudflowRichContentEnhancements();
 })();

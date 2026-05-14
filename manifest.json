@@ -1,7 +1,7 @@
 {
   "name": "ludflow",
-  "version": "0.5.2",
-  "download_url": "https://github.com/DeeJanuz/ludflow-mcpviews/releases/download/v0.5.2/ludflow-plugin.zip",
+  "version": "0.5.4",
+  "download_url": "https://github.com/DeeJanuz/ludflow-mcpviews/releases/download/v0.5.4/ludflow-plugin.zip",
   "description": "Ludflow MCP Views plugin for code intelligence and knowledge management",
   "registry_index": {
     "summary": "Code intelligence, data governance, and knowledge management tools for the Ludflow platform",
@@ -55,6 +55,8 @@
           "manage_knowledge_entries",
           "get_document",
           "write_document",
+          "move_document",
+          "delete_document",
           "list_documents"
         ]
       },
@@ -84,6 +86,8 @@
     "get_code_units": "rich_content",
     "get_document": "rich_content",
     "write_document": "rich_content",
+    "move_document": "rich_content",
+    "delete_document": "rich_content",
     "list_documents": "rich_content",
     "get_data_schema": "structured_data",
     "manage_data_draft": "structured_data",
@@ -205,9 +209,9 @@
     },
     {
       "name": "ludflow_documents_home",
-      "description": "Standalone Ludflow documents workspace with org switching, document browser, markdown editor, and live preview",
+      "description": "Standalone Ludflow documents workspace with org switching, document browser, and rich text previews with document version switching",
       "scope": "universal",
-      "rule": "Push directly to open Ludflow's standalone documents workspace inside MCP Views. The renderer fetches organizations, folders, and documents via Ludflow MCP tools. Optionally pass organization_id to preselect an org and document_id to open a specific document.",
+      "rule": "Push directly to open Ludflow's standalone documents workspace inside MCP Views. The renderer fetches organizations, folders, and documents via Ludflow MCP tools. Opening a document launches a rich text preview tab with controls for switching between current content and saved document versions. Optionally pass organization_id to preselect an org and document_id to open a specific document.",
       "invoke_schema": "{ \"type\": \"object\", \"properties\": { \"organization_id\": { \"type\": \"string\", \"description\": \"Organization ID to open.\" }, \"document_id\": { \"type\": \"string\", \"description\": \"Document ID to open immediately.\" } } }",
       "data_hint": "{ organization_id?: string, document_id?: string }",
       "standalone": true,
