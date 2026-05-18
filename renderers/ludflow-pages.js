@@ -365,10 +365,31 @@
     return fallback;
   }
 
-  function formatDate(value) {
-    if (!value || typeof value === 'object') return 'Recently';
-    var date = new Date(value);
-    if (isNaN(date.getTime())) return String(value);
+  function dateFromValue(value) {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    if (typeof value === 'object') {
+      if (typeof value.toDate === 'function') return value.toDate();
+      var seconds = value.seconds;
+      if (seconds === undefined || seconds === null) seconds = value._seconds;
+      if (seconds === undefined || seconds === null) seconds = value.sec;
+      if (seconds !== undefined && seconds !== null) {
+        var secondsNumber = Number(seconds);
+        if (Number.isFinite(secondsNumber)) return new Date(secondsNumber * 1000);
+      }
+      var candidates = [value.date, value.iso, value.isoString, value.value, value.$date];
+      for (var i = 0; i < candidates.length; i += 1) {
+        var candidateDate = dateFromValue(candidates[i]);
+        if (candidateDate && !isNaN(candidateDate.getTime())) return candidateDate;
+      }
+      return null;
+    }
+    return new Date(value);
+  }
+
+  function formatDateIfValid(value) {
+    var date = dateFromValue(value);
+    if (!date || isNaN(date.getTime())) return null;
     return date.toLocaleString(undefined, {
       year: 'numeric',
       month: 'short',
@@ -378,10 +399,16 @@
     });
   }
 
+  function formatDate(value) {
+    var formatted = formatDateIfValid(value);
+    if (formatted) return formatted;
+    if (!value || typeof value === 'object') return 'Date unavailable';
+    return String(value);
+  }
+
   function parseTimestamp(value) {
-    if (!value || typeof value === 'object') return null;
-    var date = new Date(value);
-    if (isNaN(date.getTime())) return null;
+    var date = dateFromValue(value);
+    if (!date || isNaN(date.getTime())) return null;
     return date.getTime();
   }
 
@@ -647,7 +674,25 @@
 
   function documentPublishedVersionId(documentItem) {
     if (!documentItem) return null;
-    return documentItem.publishedVersionId || documentItem.published_version_id || null;
+    var publishedVersion = asObject(documentItem.publishedVersion || documentItem.published_version);
+    var currentPublishedVersion = asObject(documentItem.currentPublishedVersion || documentItem.current_published_version);
+    var candidates = [
+      documentItem.publishedVersionId,
+      documentItem.published_version_id,
+      publishedVersion.id,
+      currentPublishedVersion.id
+    ];
+    for (var i = 0; i < candidates.length; i += 1) {
+      if (candidates[i] !== undefined && candidates[i] !== null && String(candidates[i]).trim() !== '') {
+        return candidates[i];
+      }
+    }
+    return null;
+  }
+
+  function savedVersionNumber(raw) {
+    var parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }
 
   function documentVersionNumber(version) {
@@ -655,21 +700,89 @@
     var raw = version.versionNumber;
     if (raw === undefined || raw === null) raw = version.version_number;
     if (raw === undefined || raw === null) raw = version.number;
-    var parsed = Number(raw);
-    return Number.isFinite(parsed) ? parsed : null;
+    return savedVersionNumber(raw);
+  }
+
+  function documentPublishedVersionNumber(documentItem) {
+    if (!documentItem) return null;
+    var publishedVersion = asObject(documentItem.publishedVersion || documentItem.published_version);
+    var currentPublishedVersion = asObject(documentItem.currentPublishedVersion || documentItem.current_published_version);
+    var candidates = [
+      documentItem.publishedVersionNumber,
+      documentItem.published_version_number,
+      publishedVersion.versionNumber,
+      publishedVersion.version_number,
+      publishedVersion.number,
+      currentPublishedVersion.versionNumber,
+      currentPublishedVersion.version_number,
+      currentPublishedVersion.number
+    ];
+    for (var i = 0; i < candidates.length; i += 1) {
+      var parsed = savedVersionNumber(candidates[i]);
+      if (parsed !== null) return parsed;
+    }
+    return null;
   }
 
   function requestedDocumentVersionNumber(documentItem) {
     if (!documentItem) return null;
     var raw = documentItem.requested_version;
     if (raw === undefined || raw === null) raw = documentItem.requestedVersion;
-    var parsed = Number(raw);
-    return Number.isFinite(parsed) ? parsed : null;
+    if (raw === undefined || raw === null) raw = documentItem.requested_version_number;
+    if (raw === undefined || raw === null) raw = documentItem.requestedVersionNumber;
+    return savedVersionNumber(raw);
+  }
+
+  function publishedDocumentVersion(versions) {
+    for (var i = 0; i < safeArray(versions).length; i += 1) {
+      if (versions[i] && versions[i].isCurrentlyPublished) return versions[i];
+    }
+    return null;
+  }
+
+  function documentPublishedVersionSummary(documentItem, versions) {
+    var publishedVersion = publishedDocumentVersion(versions);
+    var number = documentPublishedVersionNumber(documentItem);
+    if (number === null && publishedVersion) number = publishedVersion.versionNumber;
+    if (number !== null) return 'Version ' + number;
+    if (documentPublishedVersionId(documentItem) || (publishedVersion && publishedVersion.id)) return 'Saved version';
+    if (isDocumentPublished(documentItem)) return 'Published';
+    return 'Not published';
+  }
+
+  function documentPublishedBadgeText(summary) {
+    if (summary === 'Not published' || summary === 'Published') return summary;
+    return 'Published: ' + summary;
+  }
+
+  function isDocumentPublished(documentItem) {
+    return safeText(documentItem && documentItem.status).toLowerCase() === 'published';
+  }
+
+  function latestDocumentVersionNumber(versions) {
+    var latest = null;
+    safeArray(versions).forEach(function (version) {
+      var number = version && savedVersionNumber(version.versionNumber || version.version_number || version.number);
+      if (number !== null && (latest === null || number > latest)) latest = number;
+    });
+    return latest;
+  }
+
+  function inferPublishedVersionNumber(documentItem, versions, selectedVersion) {
+    var number = documentPublishedVersionNumber(documentItem);
+    if (number !== null) return number;
+    var publishedVersion = publishedDocumentVersion(versions);
+    if (publishedVersion) return publishedVersion.versionNumber;
+    if (!isDocumentPublished(documentItem)) return null;
+    var latest = latestDocumentVersionNumber(versions);
+    if (latest !== null) return latest;
+    return selectedVersion !== null ? selectedVersion : null;
   }
 
   function normalizeDocumentVersions(versions, documentItem) {
     var seen = {};
     var publishedVersionId = documentPublishedVersionId(documentItem);
+    var publishedVersionNumber = documentPublishedVersionNumber(documentItem);
     return safeArray(versions).map(function (version) {
       var number = documentVersionNumber(version);
       if (number === null) return null;
@@ -683,7 +796,11 @@
         createdAt: version.createdAt || version.created_at || null,
         isCurrentlyPublished: version.isCurrentlyPublished === true ||
           version.is_currently_published === true ||
-          (!!publishedVersionId && version.id === publishedVersionId)
+          version.isPublished === true ||
+          version.is_published === true ||
+          version.published === true ||
+          (!!publishedVersionId && version.id === publishedVersionId) ||
+          (publishedVersionNumber !== null && number === publishedVersionNumber)
       };
     }).filter(Boolean).sort(function (left, right) {
       return Number(right.versionNumber || 0) - Number(left.versionNumber || 0);
@@ -692,31 +809,30 @@
 
   function documentVersionLabel(version) {
     var parts = ['Version ' + safeText(version.versionNumber, '?')];
+    if (version.isCurrentlyPublished) parts.push('Published');
     if (version.label) parts.push(safeText(version.label));
-    if (version.isCurrentlyPublished) parts.push('published');
-    if (version.createdAt || version.created_at) parts.push(formatDate(version.createdAt || version.created_at));
+    var savedAt = formatDateIfValid(version.createdAt || version.created_at);
+    if (savedAt) parts.push('Saved ' + savedAt);
     return parts.join(' - ');
   }
 
-  function documentVersionSummary(documentItem) {
-    var selectedVersion = requestedDocumentVersionNumber(documentItem);
+  function documentVersionSummary(selectedVersion) {
     return selectedVersion === null ? 'Current content' : 'Version ' + selectedVersion;
   }
 
-  function buildDocumentRichContent(documentItem, folders) {
+  function buildDocumentRichContent(documentItem, folders, selectedVersion, versions) {
     var lines = [];
     lines.push('- **Status:** ' + safeText(documentItem.status, 'DRAFT'));
-    lines.push('- **Viewing:** ' + documentVersionSummary(documentItem));
+    lines.push('- **Viewing:** ' + documentVersionSummary(selectedVersion));
+    lines.push('- **Published version:** ' + documentPublishedVersionSummary(documentItem, versions));
     lines.push('- **Folder:** ' + documentFolderLabel(documentItem, folders));
     if (documentItem.user && (documentItem.user.name || documentItem.user.email)) {
       lines.push('- **Author:** ' + safeText(documentItem.user.name || documentItem.user.email));
     }
-    if (documentItem.createdAt || documentItem.created_at) {
-      lines.push('- **Created:** ' + formatDate(documentItem.createdAt || documentItem.created_at));
-    }
-    if (documentItem.updatedAt || documentItem.updated_at) {
-      lines.push('- **Updated:** ' + formatDate(documentItem.updatedAt || documentItem.updated_at));
-    }
+    var createdAt = formatDateIfValid(documentItem.createdAt || documentItem.created_at);
+    if (createdAt) lines.push('- **Created:** ' + createdAt);
+    var updatedAt = formatDateIfValid(documentItem.updatedAt || documentItem.updated_at);
+    if (updatedAt) lines.push('- **Updated:** ' + updatedAt);
     var meta = lines.join('\n');
     var body = (meta ? meta + '\n\n---\n\n' : '') + (safeText(documentItem.content).trim() || '_This document is empty._');
     return {
@@ -727,8 +843,34 @@
 
   function buildDocumentSessionPayload(documentItem, currentOrgId, folders, metaOverrides) {
     var previousDocumentMeta = metaOverrides && metaOverrides.ludflow_document ? metaOverrides.ludflow_document : {};
-    var versions = normalizeDocumentVersions(documentItem.versions || previousDocumentMeta.versions, documentItem);
     var selectedVersion = requestedDocumentVersionNumber(documentItem);
+    if (selectedVersion === null && Object.prototype.hasOwnProperty.call(previousDocumentMeta, 'selected_version_number')) {
+      selectedVersion = savedVersionNumber(previousDocumentMeta.selected_version_number);
+    }
+    var publishedVersionNumber = documentPublishedVersionNumber(documentItem);
+    if (publishedVersionNumber === null && Object.prototype.hasOwnProperty.call(previousDocumentMeta, 'published_version_number')) {
+      publishedVersionNumber = savedVersionNumber(previousDocumentMeta.published_version_number);
+    }
+    if (publishedVersionNumber === null && Object.prototype.hasOwnProperty.call(previousDocumentMeta, 'publishedVersionNumber')) {
+      publishedVersionNumber = savedVersionNumber(previousDocumentMeta.publishedVersionNumber);
+    }
+    var publishedVersionId = documentPublishedVersionId(documentItem) || documentPublishedVersionId(previousDocumentMeta);
+    var documentStatus = documentItem.status || previousDocumentMeta.status || null;
+    var versionContext = Object.assign({}, previousDocumentMeta, documentItem, {
+      status: documentStatus,
+      publishedVersionId: publishedVersionId,
+      publishedVersionNumber: publishedVersionNumber
+    });
+    var versions = normalizeDocumentVersions(documentItem.versions || previousDocumentMeta.versions, versionContext);
+    var inferredPublishedVersionNumber = inferPublishedVersionNumber(versionContext, versions, selectedVersion);
+    if (publishedVersionNumber === null && inferredPublishedVersionNumber !== null) {
+      publishedVersionNumber = inferredPublishedVersionNumber;
+      versionContext.publishedVersionNumber = publishedVersionNumber;
+      versions = normalizeDocumentVersions(documentItem.versions || previousDocumentMeta.versions, versionContext);
+    }
+    var publishedVersion = publishedDocumentVersion(versions);
+    if (publishedVersionNumber === null && publishedVersion) publishedVersionNumber = publishedVersion.versionNumber;
+    if (!publishedVersionId && publishedVersion) publishedVersionId = publishedVersion.id;
     var documentId = documentItem.id;
     var meta = Object.assign({}, metaOverrides || {}, {
       standalone_origin: 'ludflow_documents_home',
@@ -736,8 +878,11 @@
       ludflow_document: {
         id: documentId,
         title: documentItem.title || 'Untitled Document',
+        status: documentStatus,
         folder_name: documentFolderLabel(documentItem, folders),
         selected_version_number: selectedVersion,
+        published_version_id: publishedVersionId,
+        published_version_number: publishedVersionNumber,
         versions: versions
       }
     });
@@ -745,7 +890,11 @@
     return {
       toolName: 'rich_content',
       contentType: 'rich_content',
-      data: buildDocumentRichContent(documentItem, folders),
+      data: buildDocumentRichContent(Object.assign({}, documentItem, {
+        status: documentStatus,
+        publishedVersionId: publishedVersionId,
+        publishedVersionNumber: publishedVersionNumber
+      }), folders, selectedVersion, versions),
       meta: meta,
       toolArgs: {
         document_id: documentId,
@@ -759,14 +908,13 @@
   function selectedDocumentVersionValue(documentMeta, toolArgs) {
     var raw = documentMeta && documentMeta.selected_version_number;
     if (raw === undefined || raw === null) raw = toolArgs && toolArgs.version_number;
-    var parsed = Number(raw);
-    return Number.isFinite(parsed) ? String(parsed) : '__current__';
+    var parsed = savedVersionNumber(raw);
+    return parsed !== null ? String(parsed) : '__current__';
   }
 
   function parseSelectedDocumentVersion(value) {
     if (value === '__current__') return null;
-    var parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
+    return savedVersionNumber(value);
   }
 
   function replaceLudflowDocumentPreview(documentItem, priorMeta, sessionId) {
@@ -803,17 +951,29 @@
 
     ensureStyles();
 
-    var versions = normalizeDocumentVersions((documentMeta && documentMeta.versions) || [], {
-      publishedVersionId: documentMeta && (documentMeta.published_version_id || documentMeta.publishedVersionId)
-    });
     var selectedValue = selectedDocumentVersionValue(documentMeta, toolArgs);
+    var selectedVersion = parseSelectedDocumentVersion(selectedValue);
+    var versionContext = Object.assign({}, documentMeta || {});
+    var versions = normalizeDocumentVersions((documentMeta && documentMeta.versions) || [], versionContext);
+    var inferredPublishedVersionNumber = inferPublishedVersionNumber(versionContext, versions, selectedVersion);
+    if (documentPublishedVersionNumber(versionContext) === null && inferredPublishedVersionNumber !== null) {
+      versionContext.publishedVersionNumber = inferredPublishedVersionNumber;
+      versions = normalizeDocumentVersions((documentMeta && documentMeta.versions) || [], versionContext);
+    }
     var activeSession = utils().getActiveSession ? utils().getActiveSession() : null;
     var sessionId = activeSession && activeSession.sessionId;
+    var publishedSummary = documentPublishedVersionSummary(versionContext, versions);
+    var publishedBadgeText = documentPublishedBadgeText(publishedSummary);
 
     var bar = el('div', 'lf-doc-version-bar');
     var left = el('div', 'lf-doc-version-left');
     left.appendChild(el('div', 'lf-doc-version-title', 'Document version'));
-    var status = el('div', 'lf-doc-version-status', versions.length ? 'Switch between saved versions or the current content.' : 'No saved versions are available yet.');
+    var viewingSummary = selectedValue === '__current__' ? 'Viewing current content.' : 'Viewing version ' + selectedValue + '.';
+    var status = el(
+      'div',
+      'lf-doc-version-status',
+      versions.length ? viewingSummary : viewingSummary + ' No saved versions are available yet.'
+    );
     left.appendChild(status);
     bar.appendChild(left);
 
@@ -858,7 +1018,12 @@
       callTool('get_document', requestArgs)
         .then(function (payload) {
           var documentItem = payload.data || payload;
-          return replaceLudflowDocumentPreview(documentItem, meta, sessionId);
+          var nextMeta = Object.assign({}, meta, {
+            ludflow_document: Object.assign({}, documentMeta || {}, {
+              selected_version_number: nextVersion
+            })
+          });
+          return replaceLudflowDocumentPreview(documentItem, nextMeta, sessionId);
         })
         .catch(function (error) {
           select.disabled = false;
@@ -869,6 +1034,7 @@
     });
 
     controls.appendChild(select);
+    controls.appendChild(el('span', 'lf-chip', publishedBadgeText));
     bar.appendChild(controls);
 
     var header = container.querySelector('.rc-header');
