@@ -1,7 +1,7 @@
 {
   "name": "ludflow",
-  "version": "0.5.6",
-  "download_url": "https://github.com/DeeJanuz/ludflow-mcpviews/releases/download/v0.5.6/ludflow-plugin.zip",
+  "version": "0.5.7",
+  "download_url": "https://github.com/DeeJanuz/ludflow-mcpviews/releases/download/v0.5.7/ludflow-plugin.zip",
   "description": "Ludflow MCP Views plugin for code intelligence and knowledge management",
   "registry_index": {
     "summary": "Code intelligence, data governance, and knowledge management tools for the Ludflow platform",
@@ -147,7 +147,7 @@
         "manage_data_tables"
       ],
       "data_hint": "{ title?: string, tables: [{ id: string, name: string, columns: [{ id: string, name: string }], rows: [{ id: string, cells: { [columnId]: { value: string } } }] }] }",
-      "rule": "For get_data_schema/get_data_lake_schema, transform each database table into a structured_data table. Use columns: name, data_type, pk, nullable, description. Each database column becomes a row. Boolean fields become 'Yes' or empty string. For manage_data_sources, transform dataSources into rows with name, sourceType, description, createdAt, updatedAt, and show imported tables as child rows when present. For manage_data_tables, transform tables into rows with name, columnCount, sortOrder, and child column rows when present; show import errors/warnings in a notes column. Push read-only results with push_content. For destructive delete results, only display after the caller has already completed any needed MCPViews review."
+      "rule": "For get_data_schema/get_data_lake_schema, transform each database table into a structured_data table. Use columns: name, data_type, pk, nullable, description. Each database column becomes a row. Boolean fields become 'Yes' or empty string. For manage_data_sources, support every action response: dataSources list rows; a singular dataSource row for create/update; imported tables as child rows when tables is present; deletedId as a deletion-result row; rawSource as a row with dataSourceId and a safely truncated preview plus length metadata. For manage_data_tables, support tables list/import rows; a singular table row for rename; deleted/cascade results as a deletion-result row with cascadedCounts columns; impact as a table-impact row with count columns. Always include errors/warnings in a notes column. Push read-only results with push_content. For destructive delete results, only display after the caller has already completed any needed MCPViews review."
     },
     {
       "name": "structured_data",
