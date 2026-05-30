@@ -39,11 +39,13 @@
       },
       {
         "name": "Data Governance",
-        "hint": "Explore and draft changes to data schemas, columns, and data lake",
+        "hint": "Explore, create, and manage data sources, tables, metadata drafts, columns, and data lake",
         "tools": [
           "get_data_schema",
           "get_data_lake_schema",
           "get_column_context",
+          "manage_data_sources",
+          "manage_data_tables",
           "manage_data_draft"
         ]
       },
@@ -78,7 +80,9 @@
     "If list_organizations shows has_mcpviews_token as false for the target org, call start_plugin_auth with plugin_name 'ludflow' and that organization_id before retrying."
   ],
   "tool_rules": {
-    "list_organizations": "Use to discover which organizations the user belongs to and whether MCPViews already has an org-scoped token. Results are enriched with has_mcpviews_token. When switching to another org, include organization_id in subsequent Ludflow tool calls. If the target org has no token, call start_plugin_auth with that organization_id."
+    "list_organizations": "Use to discover which organizations the user belongs to and whether MCPViews already has an org-scoped token. Results are enriched with has_mcpviews_token. When switching to another org, include organization_id in subsequent Ludflow tool calls. If the target org has no token, call start_plugin_auth with that organization_id.",
+    "manage_data_sources": "Use to list, create, update, delete, and inspect raw-source content for data governance data sources. Creating/updating requires org admin or owner permissions; deleting requires owner permissions. Passing DDL/CSV content on create imports tables immediately. Use MCPViews review before destructive delete actions.",
+    "manage_data_tables": "Use to list tables for a data source, import new DDL/CSV tables into an existing source, rename tables, delete tables, and inspect delete impact. Import/rename/delete require org admin or owner permissions. Use action=impact before delete and MCPViews review before destructive delete actions."
   },
   "renderers": {
     "search_codebase": "rich_content",
@@ -90,6 +94,8 @@
     "delete_document": "rich_content",
     "list_documents": "rich_content",
     "get_data_schema": "structured_data",
+    "manage_data_sources": "structured_data",
+    "manage_data_tables": "structured_data",
     "manage_data_draft": "structured_data",
     "get_data_lake_schema": "structured_data",
     "get_dependencies": "rich_content",
@@ -136,10 +142,12 @@
       "scope": "tool",
       "tools": [
         "get_data_schema",
-        "get_data_lake_schema"
+        "get_data_lake_schema",
+        "manage_data_sources",
+        "manage_data_tables"
       ],
       "data_hint": "{ title?: string, tables: [{ id: string, name: string, columns: [{ id: string, name: string }], rows: [{ id: string, cells: { [columnId]: { value: string } } }] }] }",
-      "rule": "Transform each database table into a structured_data table. Use columns: name, data_type, pk, nullable, description. Each database column becomes a row. Boolean fields (is_primary_key, is_nullable) become 'Yes' or empty string. Metadata tags can be appended to description. Push with push_content for read-only display."
+      "rule": "For get_data_schema/get_data_lake_schema, transform each database table into a structured_data table. Use columns: name, data_type, pk, nullable, description. Each database column becomes a row. Boolean fields become 'Yes' or empty string. For manage_data_sources, transform dataSources into rows with name, sourceType, description, createdAt, updatedAt, and show imported tables as child rows when present. For manage_data_tables, transform tables into rows with name, columnCount, sortOrder, and child column rows when present; show import errors/warnings in a notes column. Push read-only results with push_content. For destructive delete results, only display after the caller has already completed any needed MCPViews review."
     },
     {
       "name": "structured_data",

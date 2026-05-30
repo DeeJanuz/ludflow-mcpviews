@@ -36,7 +36,7 @@ Ludflow uses org-scoped OAuth tokens in MCPViews.
 | Renderer | Tools |
 |----------|-------|
 | `rich_content` | `list_organizations`, `search_codebase`, `vector_search`, `get_code_units`, `get_document`, `write_document`, `move_document`, `delete_document`, `list_documents`, `get_dependencies`, `get_file_content`, `get_module_overview`, `get_analysis_stats`, `get_column_context` |
-| `structured_data` | `get_data_schema`, `get_data_lake_schema`, `manage_data_draft`, `get_business_concepts`, `manage_knowledge_entries` |
+| `structured_data` | `get_data_schema`, `get_data_lake_schema`, `manage_data_sources`, `manage_data_tables`, `manage_data_draft`, `get_business_concepts`, `manage_knowledge_entries` |
 
 ### Standalone App Pages
 
