@@ -3841,19 +3841,177 @@
       });
   }
 
+  function ensureEmbedStyles() {
+    var styleId = 'ludflow-embedded-app-styles';
+    if (document.getElementById(styleId)) return;
+
+    var style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = [
+      '.lf-embed-shell { height: 100%; min-height: 640px; display: flex; flex-direction: column; background: #fff; color: #171717; font-family: Figtree, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }',
+      '.lf-embed-toolbar { min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border-bottom: 1px solid #e5e5e5; background: #fafafa; flex-shrink: 0; }',
+      '.lf-embed-title { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; font-weight: 600; color: #171717; }',
+      '.lf-embed-status { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #737373; font-size: 12px; font-weight: 400; }',
+      '.lf-embed-actions { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }',
+      '.lf-embed-button { border: 1px solid #d4d4d4; background: #fff; color: #171717; border-radius: 6px; min-height: 28px; padding: 4px 9px; font: inherit; font-size: 12px; cursor: pointer; }',
+      '.lf-embed-button:hover { background: #f5f5f5; }',
+      '.lf-embed-frame { width: 100%; flex: 1; min-height: 0; border: 0; background: #fff; }',
+      '.lf-embed-state { flex: 1; min-height: 320px; display: flex; align-items: center; justify-content: center; padding: 24px; color: #525252; font-size: 13px; text-align: center; }',
+      '.lf-embed-error { color: #b91c1c; }',
+      '@media (prefers-color-scheme: dark) { .lf-embed-shell { background: #0a0a0a; color: #f5f5f5; } .lf-embed-toolbar { background: #171717; border-color: #404040; } .lf-embed-title { color: #f5f5f5; } .lf-embed-status { color: #a3a3a3; } .lf-embed-button { background: #262626; color: #f5f5f5; border-color: #525252; } .lf-embed-button:hover { background: #333; } .lf-embed-frame { background: #0a0a0a; } .lf-embed-state { color: #d4d4d4; } .lf-embed-error { color: #fecaca; } }'
+    ].join('\n');
+    document.head.appendChild(style);
+  }
+
+  function pluginConfig() {
+    return (window.__mcpviews_plugins && window.__mcpviews_plugins[PLUGIN_NAME]) || {};
+  }
+
+  function resolveAppOrigin() {
+    var config = pluginConfig();
+    var frameOrigins = safeArray(config.frame_origins);
+    if (frameOrigins.length) return String(frameOrigins[0]).replace(/\/+$/, '');
+    if (config.mcp_url) {
+      try {
+        return new URL(config.mcp_url).origin;
+      } catch (_error) {}
+    }
+    return LUDFLOW_APP_ORIGIN;
+  }
+
+  function targetPathWithParams(path, params) {
+    var url = new URL(path || '/', resolveAppOrigin());
+    Object.keys(params || {}).forEach(function (key) {
+      var value = params[key];
+      if (value === undefined || value === null || value === false || value === '') return;
+      url.searchParams.set(key, String(value));
+    });
+    return url.pathname + url.search;
+  }
+
+  function documentsTargetPath(data) {
+    return targetPathWithParams('/', {
+      documentId: data.document_id || data.documentId
+    });
+  }
+
+  function governanceTargetPath(data) {
+    return targetPathWithParams('/data-governance', {
+      table: data.table_id || data.tableId,
+      column: data.column_id || data.columnId,
+      knowledgeDex: data.knowledge_open ? '1' : null,
+      knowledgeTab: data.knowledge_tab || data.mode || null
+    });
+  }
+
+  function appTargetPath(data) {
+    return data.target_path || data.targetPath || '/';
+  }
+
+  function createEmbedStateNode(message, className) {
+    var node = document.createElement('div');
+    node.className = 'lf-embed-state' + (className ? ' ' + className : '');
+    node.textContent = message;
+    return node;
+  }
+
+  function renderEmbeddedLudflowApp(container, data, targetPath, label) {
+    ensureEmbedStyles();
+    var input = asObject(data);
+    var shell = document.createElement('div');
+    shell.className = 'lf-embed-shell';
+
+    var toolbar = document.createElement('div');
+    toolbar.className = 'lf-embed-toolbar';
+
+    var title = document.createElement('div');
+    title.className = 'lf-embed-title';
+    title.appendChild(document.createTextNode(label || 'Ludflow'));
+    var status = document.createElement('span');
+    status.className = 'lf-embed-status';
+    status.textContent = 'Starting session';
+    title.appendChild(status);
+    toolbar.appendChild(title);
+
+    var actions = document.createElement('div');
+    actions.className = 'lf-embed-actions';
+    var reloadButton = document.createElement('button');
+    reloadButton.type = 'button';
+    reloadButton.className = 'lf-embed-button';
+    reloadButton.textContent = 'Reload';
+    actions.appendChild(reloadButton);
+    toolbar.appendChild(actions);
+
+    var body = document.createElement('div');
+    body.className = 'lf-embed-state';
+    body.textContent = 'Opening Ludflow...';
+
+    shell.appendChild(toolbar);
+    shell.appendChild(body);
+    container.innerHTML = '';
+    container.appendChild(shell);
+
+    function loadFrame() {
+      status.textContent = 'Starting session';
+      var loadingNode = createEmbedStateNode('Opening Ludflow...');
+      shell.replaceChild(loadingNode, body);
+      body = loadingNode;
+
+      return callTool('create_app_embed_session', {
+        organization_id: input.organization_id || input.organizationId || null,
+        target_path: targetPath
+      }).then(function (payload) {
+        var responseData = asObject(payload.data || payload);
+        var embedUrl = responseData.embed_url || responseData.embedUrl;
+        if (!embedUrl) throw new Error('Ludflow did not return an embed URL.');
+
+        var iframe = document.createElement('iframe');
+        iframe.className = 'lf-embed-frame';
+        iframe.title = label || 'Ludflow';
+        iframe.src = embedUrl;
+        iframe.setAttribute('sandbox', 'allow-downloads allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts');
+        iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+        iframe.addEventListener('load', function () {
+          status.textContent = '';
+        });
+
+        shell.replaceChild(iframe, body);
+        body = iframe;
+      }).catch(function (error) {
+        status.textContent = 'Unable to open';
+        var errorNode = createEmbedStateNode(error && error.message ? error.message : 'Unable to open Ludflow.', 'lf-embed-error');
+        shell.replaceChild(errorNode, body);
+        body = errorNode;
+      });
+    }
+
+    reloadButton.addEventListener('click', function () {
+      loadFrame();
+    });
+
+    loadFrame();
+  }
+
+  window.__renderers.ludflow_app = function renderLudflowApp(container, data) {
+    var input = asObject(data);
+    renderEmbeddedLudflowApp(container, input, appTargetPath(input), 'Ludflow');
+  };
+
   window.__renderers.ludflow_documents_home = function renderLudflowDocuments(container, data) {
-    createDocumentsRenderer(container, asObject(data));
+    var input = asObject(data);
+    renderEmbeddedLudflowApp(container, input, documentsTargetPath(input), 'Documents');
   };
 
   window.__renderers.ludflow_data_governance = function renderLudflowDataGovernance(container, data) {
-    createDataGovernanceRenderer(container, asObject(data));
+    var input = asObject(data);
+    renderEmbeddedLudflowApp(container, input, governanceTargetPath(input), 'Data Governance');
   };
 
   window.__renderers.ludflow_knowledge_dex = function renderLegacyKnowledgeDex(container, data) {
-    var next = cloneObject(asObject(data));
-    next.knowledge_open = true;
-    next.knowledge_tab = next.mode === 'personal' ? 'personal' : 'org';
-    createDataGovernanceRenderer(container, next);
+    var input = cloneObject(asObject(data));
+    input.knowledge_open = true;
+    input.knowledge_tab = input.mode === 'personal' ? 'personal' : (input.knowledge_tab || 'org');
+    renderEmbeddedLudflowApp(container, input, governanceTargetPath(input), 'Knowledge Dex');
   };
 
   installLudflowRichContentEnhancements();
