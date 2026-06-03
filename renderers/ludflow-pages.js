@@ -3969,7 +3969,7 @@
         iframe.className = 'lf-embed-frame';
         iframe.title = label || 'Ludflow';
         iframe.src = embedUrl;
-        iframe.setAttribute('sandbox', 'allow-downloads allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts');
+        iframe.setAttribute('sandbox', 'allow-downloads allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts allow-storage-access-by-user-activation');
         iframe.referrerPolicy = 'strict-origin-when-cross-origin';
         iframe.addEventListener('load', function () {
           status.textContent = '';
