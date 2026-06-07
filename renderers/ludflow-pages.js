@@ -9,7 +9,7 @@
   var PLUGIN_NAME = 'ludflow';
   var TOOL_PREFIX = 'ludflow__';
   var STYLE_ID = 'ludflow-standalone-pages-styles';
-  var LUDFLOW_APP_ORIGIN = 'https://app.ludflow.com';
+  var LUDFLOW_APP_ORIGIN = 'https://staging.app.ludflow.com';
   function utils() {
     return window.__companionUtils || {};
   }
@@ -570,7 +570,7 @@
       if (orgs[j].is_current) return orgs[j].id;
     }
     for (var k = 0; k < orgs.length; k += 1) {
-      if (orgs[k].has_mcpviews_token) return orgs[k].id;
+      if (orgTokenUsable(orgs[k])) return orgs[k].id;
     }
     return orgs[0].id;
   }
@@ -584,7 +584,19 @@
 
   function orgHasToken(state) {
     var org = currentOrg(state);
-    return !!org && org.has_mcpviews_token !== false;
+    return !!org && orgTokenUsable(org);
+  }
+
+  function orgTokenUsable(org) {
+    if (!org) return false;
+    var status = org.mcpviews_token_status || (org.has_mcpviews_token === false ? 'missing' : 'valid');
+    return status === 'valid' || status === 'expired_refreshable';
+  }
+
+  function orgNeedsAuth(org) {
+    if (!org) return false;
+    var status = org.mcpviews_token_status || (org.has_mcpviews_token === false ? 'missing' : 'valid');
+    return status === 'missing' || status === 'expired_unrefreshable';
   }
 
   function loadOrganizations(state, preferredOrgId) {
@@ -1184,7 +1196,7 @@
       var orgSelect = createSelect(
         state.orgs.map(function (org) {
           var label = org.name || org.slug || org.id;
-          if (org.has_mcpviews_token === false) label += ' (auth required)';
+          if (orgNeedsAuth(org)) label += ' (auth required)';
           return { value: org.id, label: label };
         }),
         state.currentOrgId
@@ -1254,13 +1266,13 @@
     refreshButton.disabled = !!state.loading;
     navRight.appendChild(refreshButton);
 
-    if (org && org.has_mcpviews_token === false) {
+    if (orgNeedsAuth(org)) {
       var connectButton = createButton('Connect Org', 'primary', function () {
         state.loading = true;
         state.error = '';
         state.notice = null;
         renderWorkspaceShell(container, state, config, renderBody, renderOverlay);
-        invokeTauri('start_plugin_auth', { pluginName: PLUGIN_NAME, orgId: org.id })
+        invokeTauri('start_plugin_auth', { pluginName: PLUGIN_NAME, orgId: org.id, authFlow: 'email_code' })
           .then(function () {
             state.notice = { kind: 'success', text: 'Organization connected. Reloading Ludflow data...' };
             return loadOrganizations(state, org.id);
@@ -1298,7 +1310,7 @@
     frame.appendChild(body);
 
     if (state.initializing) {
-      renderEmptyScreen(body, 'Loading Ludflow workspace', 'MCP Views is fetching organization context and page data.');
+      renderEmptyScreen(body, '', '');
     } else if (!state.orgs.length) {
       renderEmptyScreen(body, 'No Ludflow organizations found', 'This account does not appear to have access to any Ludflow organizations yet.');
     } else if (!orgHasToken(state)) {
@@ -3849,22 +3861,54 @@
     style.id = styleId;
     style.textContent = [
       '.lf-embed-shell { height: 100%; min-height: 640px; display: flex; flex-direction: column; background: #fff; color: #171717; font-family: Figtree, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }',
-      '.lf-embed-toolbar { min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border-bottom: 1px solid #e5e5e5; background: #fafafa; flex-shrink: 0; }',
+      '.lf-embed-toolbar { display: none; }',
       '.lf-embed-title { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; font-weight: 600; color: #171717; }',
       '.lf-embed-status { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #737373; font-size: 12px; font-weight: 400; }',
       '.lf-embed-actions { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }',
       '.lf-embed-button { border: 1px solid #d4d4d4; background: #fff; color: #171717; border-radius: 6px; min-height: 28px; padding: 4px 9px; font: inherit; font-size: 12px; cursor: pointer; }',
       '.lf-embed-button:hover { background: #f5f5f5; }',
       '.lf-embed-frame { width: 100%; flex: 1; min-height: 0; border: 0; background: #fff; }',
-      '.lf-embed-state { flex: 1; min-height: 320px; display: flex; align-items: center; justify-content: center; padding: 24px; color: #525252; font-size: 13px; text-align: center; }',
+      '.lf-embed-panel { position: relative; flex: 1; min-height: 420px; overflow: hidden; background: #fff; }',
+      '.lf-embed-panel-message { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; color: #525252; font-size: 13px; text-align: center; pointer-events: none; }',
+      '.lf-embed-panel-mounted .lf-embed-panel-message { opacity: 0; }',
+      '.lf-embed-state { flex: 1; min-height: 320px; display: flex; align-items: center; justify-content: center; padding: 24px; background: #fff; color: #525252; font-size: 13px; text-align: center; }',
       '.lf-embed-error { color: #b91c1c; }',
-      '@media (prefers-color-scheme: dark) { .lf-embed-shell { background: #0a0a0a; color: #f5f5f5; } .lf-embed-toolbar { background: #171717; border-color: #404040; } .lf-embed-title { color: #f5f5f5; } .lf-embed-status { color: #a3a3a3; } .lf-embed-button { background: #262626; color: #f5f5f5; border-color: #525252; } .lf-embed-button:hover { background: #333; } .lf-embed-frame { background: #0a0a0a; } .lf-embed-state { color: #d4d4d4; } .lf-embed-error { color: #fecaca; } }'
+      '@media (prefers-color-scheme: dark) { .lf-embed-shell, .lf-embed-frame, .lf-embed-panel, .lf-embed-state { background: #fff; color: #171717; } .lf-embed-error { color: #b91c1c; } }'
     ].join('\n');
     document.head.appendChild(style);
   }
 
   function pluginConfig() {
     return (window.__mcpviews_plugins && window.__mcpviews_plugins[PLUGIN_NAME]) || {};
+  }
+
+  function nativeAppBridge() {
+    var host = window.__mcpviewsHost || {};
+    var companion = utils();
+    var mount = typeof host.mountNativeAppView === 'function'
+      ? host.mountNativeAppView
+      : companion.mountNativeAppView;
+    var update = typeof host.updateNativeAppViewBounds === 'function'
+      ? host.updateNativeAppViewBounds
+      : companion.updateNativeAppViewBounds;
+    var close = typeof host.closeNativeAppView === 'function'
+      ? host.closeNativeAppView
+      : companion.closeNativeAppView;
+    if (
+      typeof mount === 'function' &&
+      typeof update === 'function' &&
+      typeof close === 'function'
+    ) {
+      return { mount: mount, update: update, close: close };
+    }
+    return null;
+  }
+
+  function nativeAppLabel(label) {
+    return 'ludflow-' + String(label || 'app')
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
   }
 
   function resolveAppOrigin() {
@@ -3911,13 +3955,188 @@
   function createEmbedStateNode(message, className) {
     var node = document.createElement('div');
     node.className = 'lf-embed-state' + (className ? ' ' + className : '');
-    node.textContent = message;
+    if (message) node.textContent = message;
     return node;
+  }
+
+  function embedErrorMessage(error) {
+    if (!error) return 'Unable to open Ludflow.';
+    if (typeof error === 'string') return error;
+    if (error.message) return error.message;
+    try {
+      return JSON.stringify(error);
+    } catch (_jsonError) {
+      return 'Unable to open Ludflow.';
+    }
+  }
+
+  function createEmbedPanelNode(message) {
+    var panel = document.createElement('div');
+    panel.className = 'lf-embed-panel';
+    if (message) {
+      var panelMessage = document.createElement('div');
+      panelMessage.className = 'lf-embed-panel-message';
+      panelMessage.textContent = message;
+      panel.appendChild(panelMessage);
+    }
+    return panel;
+  }
+
+  function nativeAppOverlayActive() {
+    var host = window.__mcpviewsHost || {};
+    var companion = utils();
+    if (typeof host.isNativeAppOverlayActive === 'function') return !!host.isNativeAppOverlayActive();
+    if (typeof companion.isNativeAppOverlayActive === 'function') return !!companion.isNativeAppOverlayActive();
+    return !!(document.body && document.body.classList.contains('native-app-overlay-active'));
+  }
+
+  function nativePanelBounds(panel) {
+    var rect = panel.getBoundingClientRect();
+    var root = document.documentElement;
+    var sessionContent = panel.closest('.session-content');
+    var style = window.getComputedStyle(panel);
+    var visible = !!(
+      root &&
+      root.contains(panel) &&
+      (!sessionContent || sessionContent.classList.contains('active')) &&
+      !nativeAppOverlayActive() &&
+      style.display !== 'none' &&
+      style.visibility !== 'hidden' &&
+      rect.width >= 2 &&
+      rect.height >= 2
+    );
+    return {
+      x: Math.round(rect.left),
+      y: Math.round(rect.top),
+      width: Math.max(1, Math.round(rect.width)),
+      height: Math.max(1, Math.round(rect.height)),
+      visible: visible
+    };
+  }
+
+  function mountNativePanel(bridge, panel, embedUrl, label) {
+    var disposed = false;
+    var nativeLabel = null;
+    var lastBoundsKey = '';
+    var updateTimer = null;
+    var resizeObserver = null;
+    var removalObserver = null;
+    var pollTimer = null;
+
+    function boundsKey(bounds) {
+      return [
+        bounds.x,
+        bounds.y,
+        bounds.width,
+        bounds.height,
+        bounds.visible ? '1' : '0'
+      ].join(':');
+    }
+
+    function updateBounds(force) {
+      if (disposed || !nativeLabel) return;
+      var bounds = nativePanelBounds(panel);
+      var nextKey = boundsKey(bounds);
+      if (!force && nextKey === lastBoundsKey) return;
+      lastBoundsKey = nextKey;
+      Promise.resolve(bridge.update({
+        label: nativeLabel,
+        bounds: bounds
+      })).catch(function (error) {
+        console.warn('Failed to update Ludflow app panel bounds:', error);
+      });
+    }
+
+    function scheduleUpdate(force) {
+      if (disposed) return;
+      if (updateTimer) window.clearTimeout(updateTimer);
+      updateTimer = window.setTimeout(function () {
+        updateTimer = null;
+        updateBounds(force);
+      }, force ? 0 : 50);
+    }
+
+    function onVisibilityChange() {
+      scheduleUpdate(true);
+    }
+
+    function cleanup(closePanel) {
+      if (disposed) return;
+      disposed = true;
+      if (updateTimer) window.clearTimeout(updateTimer);
+      if (pollTimer) window.clearInterval(pollTimer);
+      if (resizeObserver) resizeObserver.disconnect();
+      if (removalObserver) removalObserver.disconnect();
+      window.removeEventListener('resize', onVisibilityChange, true);
+      window.removeEventListener('scroll', onVisibilityChange, true);
+      window.removeEventListener('mcpviews:session-visibility-changed', onVisibilityChange);
+      window.removeEventListener('mcpviews:native-app-overlay-changed', onVisibilityChange);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+
+      if (nativeLabel && closePanel !== false) {
+        Promise.resolve(bridge.close({ label: nativeLabel })).catch(function (error) {
+          console.warn('Failed to close Ludflow app panel:', error);
+        });
+      }
+    }
+
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(function () {
+        scheduleUpdate(false);
+      });
+      resizeObserver.observe(panel);
+    }
+
+    removalObserver = new MutationObserver(function () {
+      if (!document.documentElement.contains(panel)) {
+        cleanup(true);
+      }
+    });
+    removalObserver.observe(document.documentElement, { childList: true, subtree: true });
+
+    window.addEventListener('resize', onVisibilityChange, true);
+    window.addEventListener('scroll', onVisibilityChange, true);
+    window.addEventListener('mcpviews:session-visibility-changed', onVisibilityChange);
+    window.addEventListener('mcpviews:native-app-overlay-changed', onVisibilityChange);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    pollTimer = window.setInterval(function () {
+      scheduleUpdate(false);
+    }, 750);
+
+    return Promise.resolve(bridge.mount({
+      pluginName: PLUGIN_NAME,
+      url: embedUrl,
+      title: label || 'Ludflow',
+      label: nativeAppLabel(label),
+      bounds: nativePanelBounds(panel)
+    })).then(function (result) {
+      if (disposed) {
+        if (result && result.label) {
+          Promise.resolve(bridge.close({ label: result.label })).catch(function (error) {
+            console.warn('Failed to close late Ludflow app panel:', error);
+          });
+        }
+        return cleanup;
+      }
+      nativeLabel = result && result.label ? result.label : null;
+      panel.classList.add('lf-embed-panel-mounted');
+      scheduleUpdate(true);
+      return cleanup;
+    }).catch(function (error) {
+      cleanup(false);
+      throw error;
+    });
   }
 
   function renderEmbeddedLudflowApp(container, data, targetPath, label) {
     ensureEmbedStyles();
     var input = asObject(data);
+    var nativeBridge = nativeAppBridge();
+    var cleanupNativePanel = null;
+    var loadGeneration = 0;
+    var nativePanelClosedForInactiveTab = false;
+    var visibilityUpdateTimer = null;
+    var shellRemovalObserver = null;
     var shell = document.createElement('div');
     shell.className = 'lf-embed-shell';
 
@@ -3929,7 +4148,7 @@
     title.appendChild(document.createTextNode(label || 'Ludflow'));
     var status = document.createElement('span');
     status.className = 'lf-embed-status';
-    status.textContent = 'Starting session';
+    status.textContent = '';
     title.appendChild(status);
     toolbar.appendChild(title);
 
@@ -3944,16 +4163,69 @@
 
     var body = document.createElement('div');
     body.className = 'lf-embed-state';
-    body.textContent = 'Opening Ludflow...';
+    body.textContent = '';
 
     shell.appendChild(toolbar);
     shell.appendChild(body);
     container.innerHTML = '';
     container.appendChild(shell);
 
+    function cleanupPanel(closePanel) {
+      if (!cleanupNativePanel) return;
+      var cleanup = cleanupNativePanel;
+      cleanupNativePanel = null;
+      cleanup(closePanel);
+    }
+
+    function shellIsActive() {
+      var sessionContent = shell.closest('.session-content');
+      return !sessionContent || sessionContent.classList.contains('active');
+    }
+
+    function scheduleNativePanelVisibilityUpdate() {
+      if (!nativeBridge) return;
+      if (visibilityUpdateTimer) window.clearTimeout(visibilityUpdateTimer);
+      visibilityUpdateTimer = window.setTimeout(function () {
+        visibilityUpdateTimer = null;
+        if (shellIsActive()) {
+          if (nativePanelClosedForInactiveTab) {
+            nativePanelClosedForInactiveTab = false;
+            loadFrame();
+          }
+          return;
+        }
+        if (cleanupNativePanel) {
+          cleanupPanel(true);
+          nativePanelClosedForInactiveTab = true;
+        }
+      }, 0);
+    }
+
+    function disposeEmbeddedAppRenderer() {
+      if (visibilityUpdateTimer) window.clearTimeout(visibilityUpdateTimer);
+      visibilityUpdateTimer = null;
+      window.removeEventListener('mcpviews:session-visibility-changed', scheduleNativePanelVisibilityUpdate);
+      if (shellRemovalObserver) shellRemovalObserver.disconnect();
+      shellRemovalObserver = null;
+      cleanupPanel(true);
+    }
+
+    if (nativeBridge) {
+      window.addEventListener('mcpviews:session-visibility-changed', scheduleNativePanelVisibilityUpdate);
+      shellRemovalObserver = new MutationObserver(function () {
+        if (!document.documentElement.contains(shell)) {
+          disposeEmbeddedAppRenderer();
+        }
+      });
+      shellRemovalObserver.observe(document.documentElement, { childList: true, subtree: true });
+    }
+
     function loadFrame() {
-      status.textContent = 'Starting session';
-      var loadingNode = createEmbedStateNode('Opening Ludflow...');
+      var currentGeneration = ++loadGeneration;
+      nativePanelClosedForInactiveTab = false;
+      cleanupPanel(true);
+      status.textContent = '';
+      var loadingNode = createEmbedStateNode('');
       shell.replaceChild(loadingNode, body);
       body = loadingNode;
 
@@ -3964,7 +4236,24 @@
         var responseData = asObject(payload.data || payload);
         var embedUrl = responseData.embed_url || responseData.embedUrl;
         if (!embedUrl) throw new Error('Ludflow did not return an embed URL.');
+        if (currentGeneration !== loadGeneration) return null;
 
+        if (nativeBridge) {
+          status.textContent = '';
+          var panel = createEmbedPanelNode('');
+          shell.replaceChild(panel, body);
+          body = panel;
+          return mountNativePanel(nativeBridge, panel, embedUrl, label).then(function (cleanup) {
+            if (currentGeneration !== loadGeneration) {
+              cleanup(true);
+              return null;
+            }
+            cleanupNativePanel = cleanup;
+            status.textContent = 'Open';
+          });
+        }
+
+        status.textContent = '';
         var iframe = document.createElement('iframe');
         iframe.className = 'lf-embed-frame';
         iframe.title = label || 'Ludflow';
@@ -3978,8 +4267,10 @@
         shell.replaceChild(iframe, body);
         body = iframe;
       }).catch(function (error) {
+        if (currentGeneration !== loadGeneration) return;
+        cleanupPanel(true);
         status.textContent = 'Unable to open';
-        var errorNode = createEmbedStateNode(error && error.message ? error.message : 'Unable to open Ludflow.', 'lf-embed-error');
+        var errorNode = createEmbedStateNode(embedErrorMessage(error), 'lf-embed-error');
         shell.replaceChild(errorNode, body);
         body = errorNode;
       });

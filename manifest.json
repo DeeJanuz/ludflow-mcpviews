@@ -1,11 +1,11 @@
 {
   "name": "ludflow",
-  "version": "0.5.8",
-  "download_url": "https://github.com/DeeJanuz/ludflow-mcpviews/releases/download/v0.5.8/ludflow-plugin.zip",
+  "version": "0.5.12",
+  "download_url": "https://github.com/DeeJanuz/ludflow-mcpviews/releases/download/v0.5.12/ludflow-plugin.zip",
   "description": "Ludflow MCP Views plugin for code intelligence and knowledge management",
   "frame_origins": [
-    "https://app.ludflow.com",
     "https://staging.app.ludflow.com",
+    "https://app.ludflow.com",
     "http://localhost:3000",
     "http://127.0.0.1:3000"
   ],
@@ -86,10 +86,10 @@
   },
   "plugin_rules": [
     "Ludflow is a multi-org OAuth plugin. Before working in a different organization, call list_organizations to discover available orgs and token status. For follow-up Ludflow tool calls in that org, include organization_id.",
-    "If list_organizations shows has_mcpviews_token as false for the target org, call start_plugin_auth with plugin_name 'ludflow' and that organization_id before retrying."
+    "If list_organizations shows mcpviews_token_status is missing or expired_unrefreshable for the target org, call start_plugin_auth with plugin_name 'ludflow' and that organization_id before retrying. MCPViews uses in-app email-code auth by default; use auth_flow 'browser' only for advanced OAuth recovery."
   ],
   "tool_rules": {
-    "list_organizations": "Use to discover which organizations the user belongs to and whether MCPViews already has an org-scoped token. Results are enriched with has_mcpviews_token. When switching to another org, include organization_id in subsequent Ludflow tool calls. If the target org has no token, call start_plugin_auth with that organization_id.",
+    "list_organizations": "Use to discover which organizations the user belongs to and whether MCPViews already has an org-scoped token. Results are enriched with has_mcpviews_token, mcpviews_token_status, and mcpviews_token_refreshable. When switching to another org, include organization_id in subsequent Ludflow tool calls. If the target org token is missing or expired_unrefreshable, call start_plugin_auth with that organization_id; expired_refreshable should be treated as connected while MCPViews refreshes it.",
     "create_app_embed_session": "Internal renderer bridge tool. Use only when opening the real Ludflow app inside MCPViews. It returns a one-time embed_url and must not be shown or stored as a reusable login token.",
     "manage_data_sources": "Use to list, create, update, delete, and inspect raw-source content for data governance data sources. Creating/updating requires org admin or owner permissions; deleting requires owner permissions. Passing DDL/CSV content on create imports tables immediately. Use MCPViews review before destructive delete actions.",
     "manage_data_tables": "Use to list tables for a data source, import new DDL/CSV tables into an existing source, rename tables, delete tables, and inspect delete impact. Import/rename/delete require org admin or owner permissions. Use action=impact before delete and MCPViews review before destructive delete actions."
@@ -118,7 +118,8 @@
     "get_business_concepts": "structured_data",
     "manage_knowledge_entries": "structured_data",
     "get_column_context": "rich_content",
-    "list_organizations": "rich_content"
+    "list_organizations": "rich_content",
+    "create_app_embed_session": "rich_content"
   },
   "renderer_definitions": [
     {
@@ -128,7 +129,7 @@
       "tools": [
         "list_organizations"
       ],
-      "rule": "Transform list_organizations output into rich_content markdown. Title: 'Ludflow Organizations'. Body: For each org show the name, slug, role, whether it is the current token's org, and whether has_mcpviews_token is true. If has_mcpviews_token is false, tell the user to authenticate that org before switching."
+      "rule": "Transform list_organizations output into rich_content markdown. Title: 'Ludflow Organizations'. Body: For each org show the name, slug, role, whether it is the current token's org, and mcpviews_token_status. Treat expired_refreshable as connected/refreshable. If mcpviews_token_status is missing or expired_unrefreshable, tell the user to authenticate that org before switching."
     },
     {
       "name": "rich_content",
@@ -277,12 +278,15 @@
     }
   ],
   "mcp": {
-    "url": "https://app.ludflow.com/api/mcp",
+    "url": "https://staging.app.ludflow.com/api/mcp",
     "auth": {
       "type": "oauth",
       "client_id": "fc99d041-1923-416c-8173-a4c02ae9b3a7",
-      "auth_url": "https://app.ludflow.com/oauth/authorize",
-      "token_url": "https://app.ludflow.com/oauth/token",
+      "auth_url": "https://staging.app.ludflow.com/oauth/authorize",
+      "token_url": "https://staging.app.ludflow.com/oauth/token",
+      "email_code_auth": {
+        "enabled": true
+      },
       "scopes": [
         "mcp:tools"
       ]
