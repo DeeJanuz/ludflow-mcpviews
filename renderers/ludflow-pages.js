@@ -9,7 +9,7 @@
   var PLUGIN_NAME = 'ludflow';
   var TOOL_PREFIX = 'ludflow__';
   var STYLE_ID = 'ludflow-standalone-pages-styles';
-  var LUDFLOW_APP_ORIGIN = 'https://staging.app.ludflow.com';
+  var LUDFLOW_APP_ORIGIN = 'https://app.ludflow.com';
   function utils() {
     return window.__companionUtils || {};
   }
