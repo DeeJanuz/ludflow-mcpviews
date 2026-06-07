@@ -21,7 +21,30 @@ jobs:
         run: |
           CURRENT=$(python3 -c "import json; print(json.load(open('manifest.json'))['version'])")
           PREVIOUS=$(git show HEAD~1:manifest.json 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin)['version'])" 2>/dev/null || echo "")
+          AUTH_ORIGIN=$(python3 - <<'PY'
+          import json
+          from urllib.parse import urlparse
+
+          manifest = json.load(open("manifest.json"))
+          token_url = manifest.get("mcp", {}).get("auth", {}).get("token_url", "")
+          parsed = urlparse(token_url)
+          print(f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme and parsed.netloc else "")
+          PY
+          )
+          case "$AUTH_ORIGIN" in
+            "https://app.ludflow.com")
+              BUILD_CHANNEL="production"
+              ;;
+            "https://staging.app.ludflow.com")
+              BUILD_CHANNEL="staging"
+              ;;
+            *)
+              echo "::error::Unsupported Ludflow auth origin: ${AUTH_ORIGIN:-missing}"
+              exit 1
+              ;;
+          esac
           echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "build_channel=$BUILD_CHANNEL" >> "$GITHUB_OUTPUT"
           if [ "$CURRENT" != "$PREVIOUS" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
@@ -30,6 +53,8 @@ jobs:
 
       - name: Build plugin
         if: steps.version.outputs.changed == 'true'
+        env:
+          LUDFLOW_MCPVIEWS_BUILD_CHANNEL: ${{ steps.version.outputs.build_channel }}
         run: bash build.sh
 
       - name: Create release
