@@ -9,3 +9,4 @@
 - Hid the native Ludflow child panel while MCPViews host overlays, such as the Apps launcher, are open so host chrome renders above the embedded app.
 - Removed the embedded Ludflow wrapper toolbar/loading chrome so the real Ludflow app is the first visible interface.
 - Pointed the local plugin package at staging Ludflow MCP/OAuth endpoints and added the `create_app_embed_session` renderer mapping so the embedded app handoff tool is discoverable.
+- Added a build-channel guard so production plugin builds fail on staging endpoints unless `LUDFLOW_MCPVIEWS_BUILD_CHANNEL=staging` is set for staging VM packages.
