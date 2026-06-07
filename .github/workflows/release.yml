@@ -14,13 +14,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Check version change
         id: version
         run: |
           CURRENT=$(python3 -c "import json; print(json.load(open('manifest.json'))['version'])")
-          PREVIOUS=$(git show HEAD~1:manifest.json 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin)['version'])" 2>/dev/null || echo "")
+          BASE="${{ github.event.before }}"
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            BASE="HEAD~1"
+          fi
+          PREVIOUS=$(git show "${BASE}:manifest.json" 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin)['version'])" 2>/dev/null || echo "")
           AUTH_ORIGIN=$(python3 - <<'PY'
           import json
           from urllib.parse import urlparse
