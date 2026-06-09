@@ -3860,7 +3860,7 @@
     var style = document.createElement('style');
     style.id = styleId;
     style.textContent = [
-      '.lf-embed-shell { height: 100%; min-height: 640px; display: flex; flex-direction: column; background: #fff; color: #171717; font-family: Figtree, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }',
+      '.lf-embed-shell { flex: 1; height: 100%; min-height: 0; overflow: hidden; display: flex; flex-direction: column; background: #fff; color: #171717; font-family: Figtree, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }',
       '.lf-embed-toolbar { display: none; }',
       '.lf-embed-title { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; font-weight: 600; color: #171717; }',
       '.lf-embed-status { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #737373; font-size: 12px; font-weight: 400; }',
@@ -3868,10 +3868,10 @@
       '.lf-embed-button { border: 1px solid #d4d4d4; background: #fff; color: #171717; border-radius: 6px; min-height: 28px; padding: 4px 9px; font: inherit; font-size: 12px; cursor: pointer; }',
       '.lf-embed-button:hover { background: #f5f5f5; }',
       '.lf-embed-frame { width: 100%; flex: 1; min-height: 0; border: 0; background: #fff; }',
-      '.lf-embed-panel { position: relative; flex: 1; min-height: 420px; overflow: hidden; background: #fff; }',
+      '.lf-embed-panel { position: relative; flex: 1; min-height: 0; overflow: hidden; background: #fff; }',
       '.lf-embed-panel-message { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; color: #525252; font-size: 13px; text-align: center; pointer-events: none; }',
       '.lf-embed-panel-mounted .lf-embed-panel-message { opacity: 0; }',
-      '.lf-embed-state { flex: 1; min-height: 320px; display: flex; align-items: center; justify-content: center; padding: 24px; background: #fff; color: #525252; font-size: 13px; text-align: center; }',
+      '.lf-embed-state { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 24px; background: #fff; color: #525252; font-size: 13px; text-align: center; }',
       '.lf-embed-error { color: #b91c1c; }',
       '@media (prefers-color-scheme: dark) { .lf-embed-shell, .lf-embed-frame, .lf-embed-panel, .lf-embed-state { background: #fff; color: #171717; } .lf-embed-error { color: #b91c1c; } }'
     ].join('\n');
@@ -3911,15 +3911,22 @@
       .replace(/^-+|-+$/g, '');
   }
 
+  function originFromUrl(value) {
+    if (!value) return '';
+    try {
+      return new URL(String(value)).origin.replace(/\/+$/, '');
+    } catch (_error) {
+      return String(value).trim().replace(/\/+$/, '');
+    }
+  }
+
   function resolveAppOrigin() {
     var config = pluginConfig();
-    var frameOrigins = safeArray(config.frame_origins);
-    if (frameOrigins.length) return String(frameOrigins[0]).replace(/\/+$/, '');
-    if (config.mcp_url) {
-      try {
-        return new URL(config.mcp_url).origin;
-      } catch (_error) {}
-    }
+    var frameOrigins = safeArray(config.frame_origins).map(originFromUrl).filter(Boolean);
+    var mcpOrigin = originFromUrl(config.mcp_url);
+    if (mcpOrigin && (!frameOrigins.length || frameOrigins.indexOf(mcpOrigin) !== -1)) return mcpOrigin;
+    if (mcpOrigin) return mcpOrigin;
+    if (frameOrigins.length) return frameOrigins[0];
     return LUDFLOW_APP_ORIGIN;
   }
 

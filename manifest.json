@@ -1,11 +1,11 @@
 {
   "name": "ludflow",
-  "version": "0.5.13",
-  "download_url": "https://github.com/DeeJanuz/ludflow-mcpviews/releases/download/v0.5.13/ludflow-plugin.zip",
+  "version": "0.5.14",
+  "download_url": "https://github.com/DeeJanuz/ludflow-mcpviews/releases/download/v0.5.14/ludflow-plugin.zip",
   "description": "Ludflow MCP Views plugin for code intelligence and knowledge management",
   "frame_origins": [
-    "https://staging.app.ludflow.com",
     "https://app.ludflow.com",
+    "https://staging.app.ludflow.com",
     "http://localhost:3000",
     "http://127.0.0.1:3000"
   ],

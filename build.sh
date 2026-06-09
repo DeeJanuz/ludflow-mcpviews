@@ -49,12 +49,15 @@ match = re.search(r"LUDFLOW_APP_ORIGIN\s*=\s*['\"]([^'\"]+)['\"]", renderer)
 if match:
     urls.append(match.group(1))
 
-origins = {
-    f"{parsed.scheme}://{parsed.netloc}"
-    for value in urls
-    if value
-    for parsed in [urlparse(value)]
-}
+def origin(value):
+    if not value:
+        return ""
+    parsed = urlparse(value)
+    if parsed.scheme and parsed.netloc:
+        return f"{parsed.scheme}://{parsed.netloc}"
+    return str(value).rstrip("/")
+
+origins = {origin(value) for value in urls if origin(value)}
 expected = expected_origins[channel]
 if origins != {expected}:
     print(
@@ -64,6 +67,30 @@ if origins != {expected}:
         file=sys.stderr,
     )
     sys.exit(1)
+
+frame_origins = [origin(value) for value in manifest.get("frame_origins", [])]
+frame_origins = [value for value in frame_origins if value]
+if not frame_origins:
+    print("Ludflow plugin manifest must declare frame_origins.", file=sys.stderr)
+    sys.exit(1)
+if frame_origins[0] != expected:
+    print(
+        "Ludflow plugin first frame_origin does not match build channel: "
+        f"channel={channel}, expected={expected}, first={frame_origins[0]}.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+mcp_origin = origin(manifest.get("mcp", {}).get("url"))
+selected_embed_origin = mcp_origin or frame_origins[0]
+if selected_embed_origin != expected:
+    print(
+        "Ludflow plugin selected embed origin does not match build channel: "
+        f"channel={channel}, expected={expected}, selected={selected_embed_origin}.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
 print(f"  Build channel: {channel} ({expected})")
 PY
 
