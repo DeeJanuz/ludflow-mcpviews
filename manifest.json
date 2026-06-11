@@ -233,8 +233,8 @@
       "name": "ludflow_app",
       "description": "Embedded Ludflow web app, reusing the real Ludflow UI inside MCPViews",
       "scope": "universal",
-      "rule": "Push directly to open the real Ludflow web app in an MCPViews iframe. The renderer creates a server-side one-time handoff from the active org-scoped MCP OAuth grant; it does not expose Better Auth session tokens to plugin JavaScript. Optionally pass organization_id and target_path.",
-      "invoke_schema": "{ \"type\": \"object\", \"properties\": { \"organization_id\": { \"type\": \"string\", \"description\": \"Organization ID to open.\" }, \"target_path\": { \"type\": \"string\", \"description\": \"Relative Ludflow app path to open.\" } } }",
+      "rule": "Push directly to open the real Ludflow web app in an MCPViews iframe. The renderer creates a server-side one-time handoff from the active org-scoped MCP OAuth grant; it does not expose Better Auth session tokens to plugin JavaScript. Optionally pass organization_id and target_path. Supported initial iframe shell paths are / and /data-governance; Ludflow sanitizes unsupported paths to / before handoff.",
+      "invoke_schema": "{ \"type\": \"object\", \"properties\": { \"organization_id\": { \"type\": \"string\", \"description\": \"Organization ID to open.\" }, \"target_path\": { \"type\": \"string\", \"description\": \"Relative Ludflow app shell path to open. Supported initial shell paths are / and /data-governance; unsupported paths are sanitized to /.\" } } }",
       "data_hint": "{ organization_id?: string, target_path?: string }",
       "standalone": true,
       "standalone_label": "Ludflow"
