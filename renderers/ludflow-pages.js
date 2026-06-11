@@ -3882,49 +3882,6 @@
     return (window.__mcpviews_plugins && window.__mcpviews_plugins[PLUGIN_NAME]) || {};
   }
 
-  function configFlagEnabled(value) {
-    return value === true || value === 1 || value === 'true' || value === '1';
-  }
-
-  function embeddedNativeAppPanelsDisabled() {
-    var config = pluginConfig();
-    return configFlagEnabled(config.disable_native_app_panels) ||
-      configFlagEnabled(config.native_app_panels_disabled) ||
-      config.use_native_app_panels === false ||
-      config.use_native_app_panels === 'false';
-  }
-
-  function nativeAppBridge() {
-    if (embeddedNativeAppPanelsDisabled()) return null;
-
-    var host = window.__mcpviewsHost || {};
-    var companion = utils();
-    var mount = typeof host.mountNativeAppView === 'function'
-      ? host.mountNativeAppView
-      : companion.mountNativeAppView;
-    var update = typeof host.updateNativeAppViewBounds === 'function'
-      ? host.updateNativeAppViewBounds
-      : companion.updateNativeAppViewBounds;
-    var close = typeof host.closeNativeAppView === 'function'
-      ? host.closeNativeAppView
-      : companion.closeNativeAppView;
-    if (
-      typeof mount === 'function' &&
-      typeof update === 'function' &&
-      typeof close === 'function'
-    ) {
-      return { mount: mount, update: update, close: close };
-    }
-    return null;
-  }
-
-  function nativeAppLabel(label) {
-    return 'ludflow-' + String(label || 'app')
-      .toLowerCase()
-      .replace(/[^a-z0-9_-]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-  }
-
   function originFromUrl(value) {
     if (!value) return '';
     try {
@@ -3991,216 +3948,10 @@
     }
   }
 
-  function createEmbedPanelNode(message) {
-    var panel = document.createElement('div');
-    panel.className = 'lf-embed-panel';
-    if (message) {
-      var panelMessage = document.createElement('div');
-      panelMessage.className = 'lf-embed-panel-message';
-      panelMessage.textContent = message;
-      panel.appendChild(panelMessage);
-    }
-    return panel;
-  }
-
-  function nativeAppOverlayActive() {
-    var host = window.__mcpviewsHost || {};
-    var companion = utils();
-    if (typeof host.isNativeAppOverlayActive === 'function') return !!host.isNativeAppOverlayActive();
-    if (typeof companion.isNativeAppOverlayActive === 'function') return !!companion.isNativeAppOverlayActive();
-    return !!(document.body && document.body.classList.contains('native-app-overlay-active'));
-  }
-
-  function validElementRect(rect) {
-    return !!(
-      rect &&
-      Number.isFinite(rect.left) &&
-      Number.isFinite(rect.top) &&
-      Number.isFinite(rect.right) &&
-      Number.isFinite(rect.bottom) &&
-      rect.right > rect.left &&
-      rect.bottom > rect.top
-    );
-  }
-
-  function nativePanelClipRect(panel) {
-    var candidates = [
-      document.getElementById('content-area'),
-      panel.closest('.session-content'),
-      panel.closest('.session-scroll')
-    ];
-    for (var i = 0; i < candidates.length; i += 1) {
-      var candidate = candidates[i];
-      if (!candidate || typeof candidate.getBoundingClientRect !== 'function') continue;
-      var rect = candidate.getBoundingClientRect();
-      if (validElementRect(rect)) return rect;
-    }
-    return null;
-  }
-
-  function nativePanelBounds(panel) {
-    var rect = panel.getBoundingClientRect();
-    var clipRect = nativePanelClipRect(panel);
-    var left = rect.left;
-    var top = rect.top;
-    var right = rect.right;
-    var bottom = rect.bottom;
-    var clippedOut = false;
-    if (clipRect) {
-      left = Math.max(left, clipRect.left);
-      top = Math.max(top, clipRect.top);
-      right = Math.min(right, clipRect.right);
-      bottom = Math.min(bottom, clipRect.bottom);
-      clippedOut = right - left < 2 || bottom - top < 2;
-    }
-    var root = document.documentElement;
-    var sessionContent = panel.closest('.session-content');
-    var style = window.getComputedStyle(panel);
-    var width = Math.max(1, Math.round(right - left));
-    var height = Math.max(1, Math.round(bottom - top));
-    var visible = !!(
-      root &&
-      root.contains(panel) &&
-      (!sessionContent || sessionContent.classList.contains('active')) &&
-      !nativeAppOverlayActive() &&
-      !clippedOut &&
-      style.display !== 'none' &&
-      style.visibility !== 'hidden' &&
-      width >= 2 &&
-      height >= 2
-    );
-    return {
-      x: Math.round(left),
-      y: Math.round(top),
-      width: width,
-      height: height,
-      visible: visible
-    };
-  }
-
-  function mountNativePanel(bridge, panel, embedUrl, label) {
-    var disposed = false;
-    var nativeLabel = null;
-    var lastBoundsKey = '';
-    var updateTimer = null;
-    var resizeObserver = null;
-    var removalObserver = null;
-    var pollTimer = null;
-
-    function boundsKey(bounds) {
-      return [
-        bounds.x,
-        bounds.y,
-        bounds.width,
-        bounds.height,
-        bounds.visible ? '1' : '0'
-      ].join(':');
-    }
-
-    function updateBounds(force) {
-      if (disposed || !nativeLabel) return;
-      var bounds = nativePanelBounds(panel);
-      var nextKey = boundsKey(bounds);
-      if (!force && nextKey === lastBoundsKey) return;
-      lastBoundsKey = nextKey;
-      Promise.resolve(bridge.update({
-        label: nativeLabel,
-        bounds: bounds
-      })).catch(function (error) {
-        console.warn('Failed to update Ludflow app panel bounds:', error);
-      });
-    }
-
-    function scheduleUpdate(force) {
-      if (disposed) return;
-      if (updateTimer) window.clearTimeout(updateTimer);
-      updateTimer = window.setTimeout(function () {
-        updateTimer = null;
-        updateBounds(force);
-      }, force ? 0 : 50);
-    }
-
-    function onVisibilityChange() {
-      scheduleUpdate(true);
-    }
-
-    function cleanup(closePanel) {
-      if (disposed) return;
-      disposed = true;
-      if (updateTimer) window.clearTimeout(updateTimer);
-      if (pollTimer) window.clearInterval(pollTimer);
-      if (resizeObserver) resizeObserver.disconnect();
-      if (removalObserver) removalObserver.disconnect();
-      window.removeEventListener('resize', onVisibilityChange, true);
-      window.removeEventListener('scroll', onVisibilityChange, true);
-      window.removeEventListener('mcpviews:session-visibility-changed', onVisibilityChange);
-      window.removeEventListener('mcpviews:native-app-overlay-changed', onVisibilityChange);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-
-      if (nativeLabel && closePanel !== false) {
-        Promise.resolve(bridge.close({ label: nativeLabel })).catch(function (error) {
-          console.warn('Failed to close Ludflow app panel:', error);
-        });
-      }
-    }
-
-    if (typeof ResizeObserver !== 'undefined') {
-      resizeObserver = new ResizeObserver(function () {
-        scheduleUpdate(false);
-      });
-      resizeObserver.observe(panel);
-    }
-
-    removalObserver = new MutationObserver(function () {
-      if (!document.documentElement.contains(panel)) {
-        cleanup(true);
-      }
-    });
-    removalObserver.observe(document.documentElement, { childList: true, subtree: true });
-
-    window.addEventListener('resize', onVisibilityChange, true);
-    window.addEventListener('scroll', onVisibilityChange, true);
-    window.addEventListener('mcpviews:session-visibility-changed', onVisibilityChange);
-    window.addEventListener('mcpviews:native-app-overlay-changed', onVisibilityChange);
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    pollTimer = window.setInterval(function () {
-      scheduleUpdate(false);
-    }, 750);
-
-    return Promise.resolve(bridge.mount({
-      pluginName: PLUGIN_NAME,
-      url: embedUrl,
-      title: label || 'Ludflow',
-      label: nativeAppLabel(label),
-      bounds: nativePanelBounds(panel)
-    })).then(function (result) {
-      if (disposed) {
-        if (result && result.label) {
-          Promise.resolve(bridge.close({ label: result.label })).catch(function (error) {
-            console.warn('Failed to close late Ludflow app panel:', error);
-          });
-        }
-        return cleanup;
-      }
-      nativeLabel = result && result.label ? result.label : null;
-      panel.classList.add('lf-embed-panel-mounted');
-      scheduleUpdate(true);
-      return cleanup;
-    }).catch(function (error) {
-      cleanup(false);
-      throw error;
-    });
-  }
-
   function renderEmbeddedLudflowApp(container, data, targetPath, label) {
     ensureEmbedStyles();
     var input = asObject(data);
-    var nativeBridge = nativeAppBridge();
-    var cleanupNativePanel = null;
     var loadGeneration = 0;
-    var nativePanelClosedForInactiveTab = false;
-    var visibilityUpdateTimer = null;
-    var shellRemovalObserver = null;
     var shell = document.createElement('div');
     shell.className = 'lf-embed-shell';
 
@@ -4234,60 +3985,8 @@
     container.innerHTML = '';
     container.appendChild(shell);
 
-    function cleanupPanel(closePanel) {
-      if (!cleanupNativePanel) return;
-      var cleanup = cleanupNativePanel;
-      cleanupNativePanel = null;
-      cleanup(closePanel);
-    }
-
-    function shellIsActive() {
-      var sessionContent = shell.closest('.session-content');
-      return !sessionContent || sessionContent.classList.contains('active');
-    }
-
-    function scheduleNativePanelVisibilityUpdate() {
-      if (!nativeBridge) return;
-      if (visibilityUpdateTimer) window.clearTimeout(visibilityUpdateTimer);
-      visibilityUpdateTimer = window.setTimeout(function () {
-        visibilityUpdateTimer = null;
-        if (shellIsActive()) {
-          if (nativePanelClosedForInactiveTab) {
-            nativePanelClosedForInactiveTab = false;
-            loadFrame();
-          }
-          return;
-        }
-        if (cleanupNativePanel) {
-          cleanupPanel(true);
-          nativePanelClosedForInactiveTab = true;
-        }
-      }, 0);
-    }
-
-    function disposeEmbeddedAppRenderer() {
-      if (visibilityUpdateTimer) window.clearTimeout(visibilityUpdateTimer);
-      visibilityUpdateTimer = null;
-      window.removeEventListener('mcpviews:session-visibility-changed', scheduleNativePanelVisibilityUpdate);
-      if (shellRemovalObserver) shellRemovalObserver.disconnect();
-      shellRemovalObserver = null;
-      cleanupPanel(true);
-    }
-
-    if (nativeBridge) {
-      window.addEventListener('mcpviews:session-visibility-changed', scheduleNativePanelVisibilityUpdate);
-      shellRemovalObserver = new MutationObserver(function () {
-        if (!document.documentElement.contains(shell)) {
-          disposeEmbeddedAppRenderer();
-        }
-      });
-      shellRemovalObserver.observe(document.documentElement, { childList: true, subtree: true });
-    }
-
     function loadFrame() {
       var currentGeneration = ++loadGeneration;
-      nativePanelClosedForInactiveTab = false;
-      cleanupPanel(true);
       status.textContent = '';
       var loadingNode = createEmbedStateNode('');
       shell.replaceChild(loadingNode, body);
@@ -4301,21 +4000,6 @@
         var embedUrl = responseData.embed_url || responseData.embedUrl;
         if (!embedUrl) throw new Error('Ludflow did not return an embed URL.');
         if (currentGeneration !== loadGeneration) return null;
-
-        if (nativeBridge) {
-          status.textContent = '';
-          var panel = createEmbedPanelNode('');
-          shell.replaceChild(panel, body);
-          body = panel;
-          return mountNativePanel(nativeBridge, panel, embedUrl, label).then(function (cleanup) {
-            if (currentGeneration !== loadGeneration) {
-              cleanup(true);
-              return null;
-            }
-            cleanupNativePanel = cleanup;
-            status.textContent = 'Open';
-          });
-        }
 
         status.textContent = '';
         var iframe = document.createElement('iframe');
@@ -4332,7 +4016,6 @@
         body = iframe;
       }).catch(function (error) {
         if (currentGeneration !== loadGeneration) return;
-        cleanupPanel(true);
         status.textContent = 'Unable to open';
         var errorNode = createEmbedStateNode(embedErrorMessage(error), 'lf-embed-error');
         shell.replaceChild(errorNode, body);
