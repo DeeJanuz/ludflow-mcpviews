@@ -3930,6 +3930,18 @@
     return data.target_path || data.targetPath || '/';
   }
 
+  function createAppEmbedSession(input, targetPath) {
+    return callTool('create_app_embed_session', {
+      organization_id: input.organization_id || input.organizationId || null,
+      target_path: targetPath
+    }).then(function (payload) {
+      var responseData = asObject(payload.data || payload);
+      var embedUrl = responseData.embed_url || responseData.embedUrl;
+      if (!embedUrl) throw new Error('Ludflow did not return an embed URL.');
+      return embedUrl;
+    });
+  }
+
   function createEmbedStateNode(message, className) {
     var node = document.createElement('div');
     node.className = 'lf-embed-state' + (className ? ' ' + className : '');
@@ -3992,13 +4004,7 @@
       shell.replaceChild(loadingNode, body);
       body = loadingNode;
 
-      return callTool('create_app_embed_session', {
-        organization_id: input.organization_id || input.organizationId || null,
-        target_path: targetPath
-      }).then(function (payload) {
-        var responseData = asObject(payload.data || payload);
-        var embedUrl = responseData.embed_url || responseData.embedUrl;
-        if (!embedUrl) throw new Error('Ludflow did not return an embed URL.');
+      return createAppEmbedSession(input, targetPath).then(function (embedUrl) {
         if (currentGeneration !== loadGeneration) return null;
 
         status.textContent = '';
