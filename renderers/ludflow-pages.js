@@ -3882,7 +3882,21 @@
     return (window.__mcpviews_plugins && window.__mcpviews_plugins[PLUGIN_NAME]) || {};
   }
 
+  function configFlagEnabled(value) {
+    return value === true || value === 1 || value === 'true' || value === '1';
+  }
+
+  function embeddedNativeAppPanelsDisabled() {
+    var config = pluginConfig();
+    return configFlagEnabled(config.disable_native_app_panels) ||
+      configFlagEnabled(config.native_app_panels_disabled) ||
+      config.use_native_app_panels === false ||
+      config.use_native_app_panels === 'false';
+  }
+
   function nativeAppBridge() {
+    if (embeddedNativeAppPanelsDisabled()) return null;
+
     var host = window.__mcpviewsHost || {};
     var companion = utils();
     var mount = typeof host.mountNativeAppView === 'function'
@@ -3997,26 +4011,69 @@
     return !!(document.body && document.body.classList.contains('native-app-overlay-active'));
   }
 
+  function validElementRect(rect) {
+    return !!(
+      rect &&
+      Number.isFinite(rect.left) &&
+      Number.isFinite(rect.top) &&
+      Number.isFinite(rect.right) &&
+      Number.isFinite(rect.bottom) &&
+      rect.right > rect.left &&
+      rect.bottom > rect.top
+    );
+  }
+
+  function nativePanelClipRect(panel) {
+    var candidates = [
+      document.getElementById('content-area'),
+      panel.closest('.session-content'),
+      panel.closest('.session-scroll')
+    ];
+    for (var i = 0; i < candidates.length; i += 1) {
+      var candidate = candidates[i];
+      if (!candidate || typeof candidate.getBoundingClientRect !== 'function') continue;
+      var rect = candidate.getBoundingClientRect();
+      if (validElementRect(rect)) return rect;
+    }
+    return null;
+  }
+
   function nativePanelBounds(panel) {
     var rect = panel.getBoundingClientRect();
+    var clipRect = nativePanelClipRect(panel);
+    var left = rect.left;
+    var top = rect.top;
+    var right = rect.right;
+    var bottom = rect.bottom;
+    var clippedOut = false;
+    if (clipRect) {
+      left = Math.max(left, clipRect.left);
+      top = Math.max(top, clipRect.top);
+      right = Math.min(right, clipRect.right);
+      bottom = Math.min(bottom, clipRect.bottom);
+      clippedOut = right - left < 2 || bottom - top < 2;
+    }
     var root = document.documentElement;
     var sessionContent = panel.closest('.session-content');
     var style = window.getComputedStyle(panel);
+    var width = Math.max(1, Math.round(right - left));
+    var height = Math.max(1, Math.round(bottom - top));
     var visible = !!(
       root &&
       root.contains(panel) &&
       (!sessionContent || sessionContent.classList.contains('active')) &&
       !nativeAppOverlayActive() &&
+      !clippedOut &&
       style.display !== 'none' &&
       style.visibility !== 'hidden' &&
-      rect.width >= 2 &&
-      rect.height >= 2
+      width >= 2 &&
+      height >= 2
     );
     return {
-      x: Math.round(rect.left),
-      y: Math.round(rect.top),
-      width: Math.max(1, Math.round(rect.width)),
-      height: Math.max(1, Math.round(rect.height)),
+      x: Math.round(left),
+      y: Math.round(top),
+      width: width,
+      height: height,
       visible: visible
     };
   }
