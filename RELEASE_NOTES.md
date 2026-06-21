@@ -1,3 +1,8 @@
+# v0.5.19
+
+- Grant clipboard permissions to the embedded Ludflow iframe so document link and public share link copy actions work inside Windows WebView2.
+- Add a build guard that fails packaging if the iframe loses `clipboard-write`.
+
 # v0.5.18
 
 - Render Ludflow through the shared DOM iframe path with `create_app_embed_session` only.

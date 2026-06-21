@@ -49,6 +49,13 @@ match = re.search(r"LUDFLOW_APP_ORIGIN\s*=\s*['\"]([^'\"]+)['\"]", renderer)
 if match:
     urls.append(match.group(1))
 
+if "clipboard-write" not in renderer:
+    print(
+        "Ludflow embedded app iframe must grant clipboard-write for Windows/WebView2 share-link buttons.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
 def origin(value):
     if not value:
         return ""
