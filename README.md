@@ -19,12 +19,16 @@ Or install manually by downloading the latest release ZIP and extracting to `~/.
 ```
 
 This produces `ludflow-plugin.zip` containing the manifest and all renderer files.
-Production is the default build channel, and the build fails if the manifest or
-embedded app origin points at staging. For a staging VM package, run:
+Production is the default build channel and uses `https://app.ludflow.com`.
+For a staging package, run:
 
 ```bash
 LUDFLOW_MCPVIEWS_BUILD_CHANNEL=staging ./build.sh
 ```
+
+The source manifest remains production-default. The generated ZIP is guarded so
+production artifacts cannot contain staging endpoints, and staging artifacts
+cannot contain production endpoints.
 
 ## Multi-Org Auth
 
