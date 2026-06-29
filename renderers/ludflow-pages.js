@@ -587,10 +587,14 @@
     return !!org && orgTokenUsable(org);
   }
 
+  function tokenStatusUsable(status) {
+    return status === 'valid' || status === 'expired_refreshable';
+  }
+
   function orgTokenUsable(org) {
     if (!org) return false;
     var status = org.mcpviews_token_status || (org.has_mcpviews_token === false ? 'missing' : 'valid');
-    return status === 'valid' || status === 'expired_refreshable';
+    return tokenStatusUsable(status);
   }
 
   function orgNeedsAuth(org) {
@@ -599,11 +603,85 @@
     return status === 'missing' || status === 'expired_unrefreshable';
   }
 
+  function loadPluginContexts() {
+    return invokeTauri('list_plugin_contexts', {
+      pluginNames: [PLUGIN_NAME],
+      includeContexts: true,
+      includeLabels: true,
+      includeApps: false,
+      maxContextsPerPlugin: 50
+    }).catch(function () {
+      return null;
+    });
+  }
+
+  function pluginContextSummary(contextResult) {
+    var plugins = contextResult && contextResult.plugins;
+    return plugins && plugins.length ? plugins[0] : null;
+  }
+
+  function pluginContextById(pluginContext) {
+    var byId = {};
+    var rows = safeArray(pluginContext && pluginContext.contexts);
+    for (var i = 0; i < rows.length; i += 1) {
+      var row = rows[i] || {};
+      if (row.context_id) byId[row.context_id] = row;
+    }
+    return byId;
+  }
+
+  function mergePluginContextStatus(orgs, contextsById) {
+    for (var i = 0; i < orgs.length; i += 1) {
+      var org = orgs[i] || {};
+      var context = contextsById[org.id];
+      if (!context) continue;
+      org.mcpviews_token_status = context.status || (context.usable ? 'valid' : 'missing');
+      org.has_mcpviews_token = context.has_token !== false;
+      org.is_project_default = !!context.is_project_default;
+    }
+  }
+
+  function ensureContextOrgRow(orgs, contextId, contextRow) {
+    if (!contextId) return;
+    for (var i = 0; i < orgs.length; i += 1) {
+      if (orgs[i] && orgs[i].id === contextId) return;
+    }
+    if (!contextRow) return;
+    orgs.push({
+      id: contextId,
+      name: contextRow.label || contextRow.name || contextRow.slug || contextId,
+      slug: contextRow.slug || null,
+      has_mcpviews_token: contextRow.has_token !== false,
+      mcpviews_token_status: contextRow.status || (contextRow.usable ? 'valid' : 'missing')
+    });
+  }
+
   function loadOrganizations(state, preferredOrgId) {
-    return callTool('list_organizations', {}).then(function (payload) {
+    return Promise.all([
+      callTool('list_organizations', {}),
+      loadPluginContexts()
+    ]).then(function (results) {
+      var payload = results[0];
+      var pluginContext = pluginContextSummary(results[1]);
+      var contextsById = pluginContextById(pluginContext);
       var orgs = safeArray(payload.data || payload);
+      mergePluginContextStatus(orgs, contextsById);
+
+      var defaultContext = pluginContext && pluginContext.default_context;
+      var projectDefaultOrgId = defaultContext && defaultContext.source === 'project'
+        ? defaultContext.context_id
+        : null;
+      var targetOrgId = preferredOrgId || projectDefaultOrgId || state.currentOrgId || null;
+      if (targetOrgId) {
+        ensureContextOrgRow(
+          orgs,
+          targetOrgId,
+          contextsById[targetOrgId] || (defaultContext && defaultContext.context_id === targetOrgId ? defaultContext : null)
+            || (pluginContext ? { label: targetOrgId, status: 'missing', has_token: false } : null)
+        );
+      }
       state.orgs = orgs;
-      state.currentOrgId = pickOrgId(orgs, preferredOrgId || state.currentOrgId);
+      state.currentOrgId = pickOrgId(orgs, targetOrgId);
       return orgs;
     });
   }
@@ -3931,14 +4009,40 @@
   }
 
   function createAppEmbedSession(input, targetPath) {
-    return callTool('create_app_embed_session', {
-      organization_id: input.organization_id || input.organizationId || null,
-      target_path: targetPath
+    return resolveEmbedInputContext(input).then(function (resolvedInput) {
+      return callTool('create_app_embed_session', {
+        organization_id: resolvedInput.organization_id || resolvedInput.organizationId || null,
+        target_path: targetPath
+      });
     }).then(function (payload) {
       var responseData = asObject(payload.data || payload);
       var embedUrl = responseData.embed_url || responseData.embedUrl;
       if (!embedUrl) throw new Error('Ludflow did not return an embed URL.');
       return embedUrl;
+    });
+  }
+
+  function resolveEmbedInputContext(input) {
+    var resolvedInput = asObject(input);
+    return loadPluginContexts().then(function (contextResult) {
+      var pluginContext = pluginContextSummary(contextResult);
+      var defaultContext = pluginContext && pluginContext.default_context;
+      var contextsById = pluginContextById(pluginContext);
+      var explicitOrgId = resolvedInput.organization_id || resolvedInput.organizationId || null;
+      var targetOrgId = explicitOrgId || (defaultContext && defaultContext.context_id) || null;
+      if (!targetOrgId) return resolvedInput;
+
+      var contextRow = contextsById[targetOrgId] || null;
+      var status = contextRow && contextRow.status
+        ? contextRow.status
+        : (defaultContext && defaultContext.context_id === targetOrgId ? defaultContext.status : null);
+      var knownByContextLayer = !!contextRow || (defaultContext && defaultContext.context_id === targetOrgId);
+      if (knownByContextLayer && !tokenStatusUsable(status)) {
+        throw new Error('Ludflow organization context cannot be bound: ' + targetOrgId + ' is ' + (status || 'missing') + '. Connect this organization before opening the app.');
+      }
+
+      resolvedInput.organization_id = targetOrgId;
+      return resolvedInput;
     });
   }
 

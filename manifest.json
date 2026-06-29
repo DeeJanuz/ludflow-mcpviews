@@ -292,5 +292,15 @@
       ]
     },
     "tool_prefix": "ludflow__"
+  },
+  "context_provider": {
+    "context_type": "organization",
+    "routing_arg": "organization_id",
+    "provider_tool": "list_organizations",
+    "label_fields": [
+      "name",
+      "slug",
+      "role"
+    ]
   }
 }
