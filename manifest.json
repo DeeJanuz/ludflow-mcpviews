@@ -15,7 +15,8 @@
       "code-analysis",
       "search",
       "data-governance",
-      "knowledge-management"
+      "knowledge-management",
+      "signatures"
     ],
     "plugin_rules": [
       "When working on a Decidr decision or project and discovery produces findings worth preserving (architecture analysis, design specs, prerequisite research), propose creating a Ludflow document using write_document. Only propose documents when there is a relevant Decidr entity to attach to \u2014 do not create documents speculatively.",
@@ -69,6 +70,14 @@
         ]
       },
       {
+        "name": "Signatures",
+        "hint": "Create reusable prepared signature document templates and manage manual summary metadata",
+        "tools": [
+          "create_signature_document_template",
+          "set_signature_document_summary"
+        ]
+      },
+      {
         "name": "Organization",
         "hint": "Discover organizations, MCPViews auth status, and embedded app sessions",
         "tools": [
@@ -92,7 +101,9 @@
     "list_organizations": "Use to discover which organizations the user belongs to and whether MCPViews already has an org-scoped token. Results are enriched with has_mcpviews_token, mcpviews_token_status, and mcpviews_token_refreshable. When switching to another org, include organization_id in subsequent Ludflow tool calls. If the target org token is missing or expired_unrefreshable, call start_plugin_auth with that organization_id; expired_refreshable should be treated as connected while MCPViews refreshes it.",
     "create_app_embed_session": "Internal renderer bridge tool. Use only when opening the real Ludflow app inside MCPViews. It returns a one-time embed_url and must not be shown or stored as a reusable login token.",
     "manage_data_sources": "Use to list, create, update, delete, and inspect raw-source content for data governance data sources. Creating/updating requires org admin or owner permissions; deleting requires owner permissions. Passing DDL/CSV content on create imports tables immediately. Use MCPViews review before destructive delete actions.",
-    "manage_data_tables": "Use to list tables for a data source, import new DDL/CSV tables into an existing source, rename tables, delete tables, and inspect delete impact. Import/rename/delete require org admin or owner permissions. Use action=impact before delete and MCPViews review before destructive delete actions."
+    "manage_data_tables": "Use to list tables for a data source, import new DDL/CSV tables into an existing source, rename tables, delete tables, and inspect delete impact. Import/rename/delete require org admin or owner permissions. Use action=impact before delete and MCPViews review before destructive delete actions.",
+    "create_signature_document_template": "Use to create reusable prepared signature document templates from existing PDF documents. First locate contract PDFs with list_documents(document_format=PDF). The summary field is manual plain-language metadata for contract terms; do not present it as AI-generated. PDF field coordinates are normalized 0..1 page-relative values.",
+    "set_signature_document_summary": "Use to set or clear manual plain-language summary metadata on an existing prepared signature document template. This is metadata-only; it does not generate AI summary text, edit PDF fields, or send signing invitations."
   },
   "no_auto_push": [
     "create_app_embed_session"
@@ -119,7 +130,9 @@
     "manage_knowledge_entries": "structured_data",
     "get_column_context": "rich_content",
     "list_organizations": "rich_content",
-    "create_app_embed_session": "rich_content"
+    "create_app_embed_session": "rich_content",
+    "create_signature_document_template": "rich_content",
+    "set_signature_document_summary": "rich_content"
   },
   "renderer_definitions": [
     {
@@ -228,6 +241,24 @@
         "get_column_context"
       ],
       "rule": "Transform column context into rich_content markdown. Title: 'Column: dataSource.table.column'. Body: Show column metadata (type, nullable, PK), description, linked business concepts, document links, and cross-column relationships. Add plugin citations for linked entities."
+    },
+    {
+      "name": "rich_content",
+      "description": "Markdown display for created signature document templates",
+      "scope": "tool",
+      "tools": [
+        "create_signature_document_template"
+      ],
+      "rule": "Transform create_signature_document_template output into rich_content markdown. Title: 'Signature Template Created'. Body: show template title, status, source document/version IDs, manual summary if present, role count, field count, and the next step to send invitations from the Ludflow signature UI."
+    },
+    {
+      "name": "rich_content",
+      "description": "Markdown display for signature document summary metadata updates",
+      "scope": "tool",
+      "tools": [
+        "set_signature_document_summary"
+      ],
+      "rule": "Transform set_signature_document_summary output into rich_content markdown. Title: 'Signature Summary Updated'. Body: show template title, status, source document/version IDs, manual summary text when present, and note when the summary metadata was cleared. Do not describe the summary as AI-generated."
     },
     {
       "name": "ludflow_app",
