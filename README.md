@@ -36,8 +36,9 @@ Ludflow uses org-scoped OAuth tokens in MCPViews.
 
 - Use `list_organizations` to discover which organizations the user belongs to.
 - MCPViews enriches those results with `has_mcpviews_token`, `mcpviews_token_status`, and `mcpviews_token_refreshable` so agents can see whether a given org is authenticated, refreshable, or missing local auth.
+- A successful Ludflow or DecidR email-code login bulk-seeds org-scoped tokens for every organization returned by the login backend and mirrors them into both plugin stores.
 - For follow-up Ludflow tool calls in a non-default org, include `organization_id` in the tool arguments.
-- If a target org has no stored token or is `expired_unrefreshable`, call `start_plugin_auth` with plugin `ludflow` and that `organization_id` before retrying. MCPViews opens the in-app email-code flow by default; use `auth_flow: "browser"` only for advanced OAuth recovery.
+- If a target org has no stored token or is `expired_unrefreshable`, call `start_plugin_auth` with plugin `ludflow` and that `organization_id` before retrying. MCPViews opens the in-app email-code flow by default; that one flow should connect all returned memberships. Use `auth_flow: "browser"` only for advanced OAuth recovery.
 
 ## Renderers
 

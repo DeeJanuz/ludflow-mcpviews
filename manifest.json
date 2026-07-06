@@ -1,7 +1,7 @@
 {
   "name": "ludflow",
-  "version": "0.5.20",
-  "download_url": "https://github.com/DeeJanuz/ludflow-mcpviews/releases/download/v0.5.20/ludflow-plugin.zip",
+  "version": "0.5.21",
+  "download_url": "https://github.com/DeeJanuz/ludflow-mcpviews/releases/download/v0.5.21/ludflow-plugin.zip",
   "description": "Ludflow MCP Views plugin for code intelligence and knowledge management",
   "frame_origins": [
     "https://app.ludflow.com",
@@ -94,11 +94,11 @@
     ]
   },
   "plugin_rules": [
-    "Ludflow is a multi-org OAuth plugin. Before working in a different organization, call list_organizations to discover available orgs and token status. For follow-up Ludflow tool calls in that org, include organization_id.",
-    "If list_organizations shows mcpviews_token_status is missing or expired_unrefreshable for the target org, call start_plugin_auth with plugin_name 'ludflow' and that organization_id before retrying. MCPViews uses in-app email-code auth by default; use auth_flow 'browser' only for advanced OAuth recovery."
+    "Ludflow is a multi-org OAuth plugin. Before working in a different organization, call list_organizations to discover available orgs and token status. A successful Ludflow or DecidR email-code login bulk-seeds org-scoped tokens for every organization returned by the login backend and mirrors them into both plugin stores. For follow-up Ludflow tool calls in that org, include organization_id.",
+    "If list_organizations or init_session org_tokens shows mcpviews_token_status is missing or expired_unrefreshable for the target org, call start_plugin_auth with plugin_name 'ludflow' and that organization_id before retrying. That one in-app email-code flow should connect all returned memberships for both Ludflow and DecidR; use auth_flow 'browser' only for advanced OAuth recovery."
   ],
   "tool_rules": {
-    "list_organizations": "Use to discover which organizations the user belongs to and whether MCPViews already has an org-scoped token. Results are enriched with has_mcpviews_token, mcpviews_token_status, and mcpviews_token_refreshable. When switching to another org, include organization_id in subsequent Ludflow tool calls. If the target org token is missing or expired_unrefreshable, call start_plugin_auth with that organization_id; expired_refreshable should be treated as connected while MCPViews refreshes it.",
+    "list_organizations": "Use to discover which organizations the user belongs to and whether MCPViews already has an org-scoped token. Results are enriched with has_mcpviews_token, mcpviews_token_status, and mcpviews_token_refreshable. When switching to another org, include organization_id in subsequent Ludflow tool calls. If the target org token is missing or expired_unrefreshable, call start_plugin_auth with that organization_id; one successful Ludflow or DecidR email-code login should bulk-seed every returned membership into both plugin stores. expired_refreshable should be treated as connected while MCPViews refreshes it.",
     "create_app_embed_session": "Internal renderer bridge tool. Use only when opening the real Ludflow app inside MCPViews. It returns a one-time embed_url and must not be shown or stored as a reusable login token.",
     "manage_data_sources": "Use to list, create, update, delete, and inspect raw-source content for data governance data sources. Creating/updating requires org admin or owner permissions; deleting requires owner permissions. Passing DDL/CSV content on create imports tables immediately. Use MCPViews review before destructive delete actions.",
     "manage_data_tables": "Use to list tables for a data source, import new DDL/CSV tables into an existing source, rename tables, delete tables, and inspect delete impact. Import/rename/delete require org admin or owner permissions. Use action=impact before delete and MCPViews review before destructive delete actions.",
@@ -142,7 +142,7 @@
       "tools": [
         "list_organizations"
       ],
-      "rule": "Transform list_organizations output into rich_content markdown. Title: 'Ludflow Organizations'. Body: For each org show the name, slug, role, whether it is the current token's org, and mcpviews_token_status. Treat expired_refreshable as connected/refreshable. If mcpviews_token_status is missing or expired_unrefreshable, tell the user to authenticate that org before switching."
+      "rule": "Transform list_organizations output into rich_content markdown. Title: 'Ludflow Organizations'. Body: For each org show the name, slug, role, whether it is the current token's org, and mcpviews_token_status. Treat expired_refreshable as connected/refreshable. If mcpviews_token_status is missing or expired_unrefreshable, tell the user to authenticate once with the target org selected; the email-code flow should bulk-seed all returned memberships for both Ludflow and DecidR."
     },
     {
       "name": "rich_content",
